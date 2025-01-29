@@ -1,15 +1,18 @@
 {
-    "name": "websocket-server",
-    "version": "1.0.0",
-    "main": "server.mjs",
-    "type": "module",
-    "dependencies": {
-      "express": "^4.17.1",
-      "socket.io": "^4.4.0",
-       "ts-node": "^10.9.2"
-    },
-    "scripts": {
-      "start": "ts-node server.mjs"
-    }
+  "name": "websocket-server",
+  "version": "1.0.0",
+  "main": "server.mjs",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^4.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "ts-node": "^10.0.0",
+    "@types/node": "^14.0.0"
+  },
+  "scripts": {
+    "start": "ts-node server.mjs"
   }
-  
+}
