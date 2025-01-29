@@ -1,11 +1,15 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
+import Redis from 'ioredis';
+import socketIoRedis from 'socket.io-redis';
 
 const dev = process.env.NODE_ENV !== 'production';
-// const hostname = process.env.HOSTNAME || 'localhost';
-//const hostname = '0.0.0.0'; 
+const hostname = process.env.HOSTNAME || 'localhost';
 const port = process.env.PORT || 3000;
+
+// Set up Redis connection (use Redis URL from Render)
+const redis = new Redis(process.env.REDIS_URL);
 
 // Initialize Next.js app
 const app = next({ dev, hostname, port });
@@ -15,6 +19,8 @@ app.prepare().then(() => {
   const httpServer = createServer(handle); // Create HTTP server to serve Next.js app
 
   const io = new Server(httpServer); // Attach Socket.IO to the same server
+  // Use socket.io-redis for pub/sub with Redis
+  io.adapter(socketIoRedis({ pubClient: redis, subClient: redis }));
 
   io.on('connection', (socket) => {
     console.log(`a user connected: ${socket.id}`);
