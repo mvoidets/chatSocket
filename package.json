@@ -4,9 +4,13 @@
   "description": "A WebSocket server",
   "main": "server.mjs",
   "scripts": {
-    "start": "node server.mjs"
+    
+    "build": "next build",
+    "start": "ts-node server.mjs",
+    "dev": "next dev"
   },
   "dependencies": {
+    "next": "15.1.5",
     "express": "^4.17.1",
     "socket.io": "^4.0.0",
     "ts-node": "^10.9.2"
