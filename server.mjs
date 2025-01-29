@@ -6,7 +6,7 @@ import socketIoRedis from 'socket.io-redis';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3002;
 
 // Set up Redis connection (use Redis URL from Render)
 const redis = new Redis(process.env.REDIS_URL);
@@ -20,8 +20,9 @@ app.prepare().then(() => {
 
   const io = new Server(httpServer); // Attach Socket.IO to the same server
   // Use socket.io-redis for pub/sub with Redis
-  io.adapter(socketIoRedis({ pubClient: redis, subClient: redis }));
-
+  //io.adapter(socketIoRedis({ pubClient: redis, subClient: redis }));
+  io.adapter(socketIoRedis({ host: 'localhost', port: 6379 }));
+  
   io.on('connection', (socket) => {
     console.log(`a user connected: ${socket.id}`);
 
