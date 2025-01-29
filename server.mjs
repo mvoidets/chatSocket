@@ -4,8 +4,8 @@ import { Server } from 'socket.io';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
-const port = parseInt(process.env.PORT || '3000');
-
+//const port = process.env.PORT || 3000;
+const port = '0.0.0.0';
 // Initialize Next.js app
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
