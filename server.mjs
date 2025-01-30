@@ -8,7 +8,7 @@ import { Server } from 'socket.io';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
-const port = parseInt(process.env.PORT || '3000', 10);
+const port = process.env.PORT || '3005';
 
 // Log environment variables to ensure they're set correctly
 console.log('Environment:', process.env.NODE_ENV);
