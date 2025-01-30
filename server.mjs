@@ -45,6 +45,6 @@ app.prepare().then(() => {
 
   // Start the server on the dynamic port
   httpServer.listen(port, () => {
-    console.log(`Server running on http://${hostname}:${port}`);
+    console.log(`Server running on http://localhost:${port}`);
   });
 });
