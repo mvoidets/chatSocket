@@ -20,10 +20,10 @@ const rooms = []; // In-memory list of rooms (could be an array or object)
 app.prepare().then(() => {
     console.log('Next.js app prepared successfully.');
 
-    const httpServer = createServer(handle); // This will serve your Next.js app
+    const httpServer = createServer(handle); 
     const io = new Server(httpServer, {
         cors: {
-            origin: "*",  // This allows all origins, or you can specify the frontend URL
+            origin: "*",  
             methods: ["GET", "POST"],
             allowedHeaders: ["Content-Type"],
             credentials: true,
