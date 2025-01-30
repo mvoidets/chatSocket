@@ -5,7 +5,7 @@ import Redis from 'ioredis';
 import socketIoRedis from 'socket.io-redis';
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = process.env.HOSTNAME || 'localhost';
+//const hostname = process.env.HOSTNAME || 'localhost';
 const port = process.env.PORT || 3002;
 
 // Set up Redis connection (use Redis URL from Render)
