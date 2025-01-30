@@ -22,17 +22,14 @@ app.prepare().then(() => {
     console.log('Next.js app prepared successfully.');
 
     const httpServer = createServer(handle); // This will serve your Next.js app
-    const io = socketIo(server, {
+    const io = new Server(httpServer, {
         cors: {
-        origin: "*",  // This allows all origins, or you can specify the frontend URL
-        methods: ["GET", "POST"],
-        allowedHeaders: ["Content-Type"],
-        credentials: true,
-  },
-});
-
-   // const io = new Server(httpServer); // Socket.io is attached to the same server
-
+            origin: "*",  // This allows all origins, or you can specify the frontend URL
+            methods: ["GET", "POST"],
+            allowedHeaders: ["Content-Type"],
+            credentials: true,
+        },
+    });
     io.on("connection", (socket) => {
         console.log(`${socket.id} has connected`);
 
