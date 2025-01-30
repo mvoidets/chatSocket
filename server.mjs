@@ -62,7 +62,12 @@ app.prepare().then(() => {
             console.log(`Message from ${sender} in room ${room}: ${message}`);
             socket.to(room).emit("message", { sender, message });
         });
-
+        //user leaving room
+    socket.on("leave-room", (room) => {
+        socket.leave(room);
+        console.log(`User ${socket.id} left room: ${room}`);
+        socket.to(room).emit("user_left", `${socket.id} left the room`);
+        });
         // Handle disconnection
         socket.on("disconnect", () => {
             console.log(`User disconnected: ${socket.id}`);
