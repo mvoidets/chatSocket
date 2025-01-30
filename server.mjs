@@ -63,11 +63,18 @@ app.prepare().then(() => {
             socket.to(room).emit("message", { sender, message });
         });
         //user leaving room
-    socket.on("leave-room", (room) => {
-        socket.leave(room);
-        console.log(`User ${socket.id} left room: ${room}`);
-        socket.to(room).emit("user_left", `${socket.id} left the room`);
+        socket.on("leave-room", (room) => {
+            socket.leave(room);
+            console.log(`User ${socket.id} left room: ${room}`);
+            socket.to(room).emit("user_left", `${socket.id} left the room`);
         });
+
+           // Handle removing a room
+        socket.on("removeRoom", (roomToRemove) => {
+            rooms = rooms.filter(room => room !== roomToRemove); // Remove room from list
+            io.emit("availableRooms", rooms); // Broadcast updated rooms list
+    });
+
         // Handle disconnection
         socket.on("disconnect", () => {
             console.log(`User disconnected: ${socket.id}`);
