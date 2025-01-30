@@ -1,7 +1,3 @@
-
-// import Redis from 'ioredis';
-// import socketIoRedis from 'socket.io-redis';
-
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
@@ -18,6 +14,9 @@ console.log('PORT:', port);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+const rooms = []; // In-memory list of rooms (could be an array or object)
+
+// Set up the Next.js app
 app.prepare().then(() => {
     console.log('Next.js app prepared successfully.');
 
@@ -30,20 +29,41 @@ app.prepare().then(() => {
             credentials: true,
         },
     });
+
     io.on("connection", (socket) => {
         console.log(`${socket.id} has connected`);
 
+        // Send the list of available rooms when a client requests it
+        socket.on("getAvailableRooms", () => {
+            socket.emit("availableRooms", rooms); // Emit available rooms
+        });
+
+        // Create a new room
+        socket.on("createRoom", (roomName) => {
+            if (rooms.includes(roomName)) {
+                // Emit roomExists event if room already exists
+                socket.emit("roomExists", roomName);
+            } else {
+                rooms.push(roomName); // Add the room to the list
+                console.log(`Room created: ${roomName}`);
+                io.emit("availableRooms", rooms); // Broadcast updated room list to all clients
+            }
+        });
+
+        // Handle users joining rooms
         socket.on("join-room", ({ room, username }) => {
             console.log(`User ${username} joined room: ${room}`);
             socket.join(room);
             socket.to(room).emit("user_joined", `${username} joined the room`);
         });
 
+        // Handle sending messages in a room
         socket.on("message", ({ room, message, sender }) => {
             console.log(`Message from ${sender} in room ${room}: ${message}`);
             socket.to(room).emit("message", { sender, message });
         });
 
+        // Handle disconnection
         socket.on("disconnect", () => {
             console.log(`User disconnected: ${socket.id}`);
         });
@@ -57,4 +77,3 @@ app.prepare().then(() => {
     // Log any errors during app preparation
     console.error('Error preparing Next.js app:', err);
 });
-
