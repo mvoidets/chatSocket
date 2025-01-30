@@ -77,6 +77,11 @@ app.prepare().then(() => {
             socket.to(room).emit("message", { sender, message });
         });
 
+        socket.on("get-available-rooms", () => {
+          const rooms = getRoomsFromFile(); // Fetch rooms from the file or database
+          socket.emit("availableRooms", rooms); // Send the list of rooms to the client
+        });
+
         socket.on("disconnect", () => {
             console.log(`User disconnected: ${socket.id}`);
         });
