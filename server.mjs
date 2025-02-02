@@ -73,7 +73,7 @@ app.prepare().then(() => {
     io.on("connection", (socket) => {
         console.log(`${socket.id} has connected`);
 
-        // Handle createRoom event
+ // Handle createRoom event
         socket.on("createRoom", async (newRoom) => {
             const room = await createRoomInDB(newRoom);
             if (room) {
@@ -83,25 +83,51 @@ app.prepare().then(() => {
             }
         });
 
-        
-        // Other socket event handlers (join-room, message, etc.)
-                socket.on("join-room", async ({ room, username }) => {
-            console.log(`User ${username} joined room: ${room}`);
-            socket.join(room);
+//join room
+        socket.on("join-room", async ({ room, userId }) => {
+            console.log(`User with ID ${userId} is attempting to join room: ${room}`);
 
-            const roomRes = await client.query('SELECT id FROM rooms WHERE name = $1', [room]);
-            const roomId = roomRes.rows[0]?.id;
+            // Fetch the username from the database using the userId
+            const userRes = await client.query('SELECT user_name FROM users WHERE id = $1', [userId]);
+            const username = userRes.rows[0]?.user_name;
 
-            if (roomId) {
-                await client.query('INSERT INTO room_users (room_id, user_name) VALUES ($1, $2)', [roomId, username]);
-                console.log(`User ${username} added to room_users table`);
-                socket.to(room).emit("user_joined", `${username} joined the room`);
+            if (username) {
+                console.log(`User ${username} joined room: ${room}`);
+                socket.join(room);
 
-                const messages = await getMessagesFromDB(room);
-                socket.emit("messageHistory", messages);
+                const roomRes = await client.query('SELECT id FROM rooms WHERE name = $1', [room]);
+                const roomId = roomRes.rows[0]?.id;
+
+                if (roomId) {
+                    await client.query('INSERT INTO room_users (room_id, user_name) VALUES ($1, $2)', [roomId, username]);
+                    console.log(`User ${username} added to room_users table`);
+
+                    socket.to(room).emit("user_joined", `${username} joined the room`);
+
+                    const messages = await getMessagesFromDB(room); // Assume this function is implemented to fetch messages
+                    socket.emit("messageHistory", messages);
+                }
+            } else {
+                console.log(`User with ID ${userId} not found`);
+                socket.emit("error", "User not found in the database");
             }
         });
+//deleting room
+        socket.on("removeRoom", async (roomToRemove) => {
+            console.log(`Attempting to remove room: ${roomToRemove}`);
 
+            // Delete the room from the database
+            try {
+                const res = await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
+                console.log(`Room ${roomToRemove} deleted from DB`);
+
+                // Emit the updated room list to all connected clients
+                io.emit("availableRooms", await getRoomsFromDB());
+            } catch (error) {
+                console.error("Error deleting room:", error);
+            }
+        });
+    //leave room
         socket.on("leave-room", async (room) => {
             console.log(`User left room: ${room}`);
             socket.leave(room);
