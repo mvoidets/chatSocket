@@ -12,6 +12,12 @@ const port = process.env.PORT || '3005';
 const client = new Client({
     connectionString: process.env.DATABASE_URL, // Make sure to set your DATABASE_URL in .env
 });
+// Connect to the database
+client.connect().then(() => {
+    console.log('Connected to PostgreSQL database');
+}).catch((error) => {
+    console.error('Failed to connect to PostgreSQL:', error);
+});
 
 const getRoomsFromDB = async () => {
     try {
