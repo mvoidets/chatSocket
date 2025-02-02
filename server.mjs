@@ -168,6 +168,20 @@ const checkForWinner = (players) => {
     return null;
 };
 
+// game turn history
+const saveGameTurn = async (gameId, playerId, rollResults) => {
+    try {
+        for (let i = 0; i < rollResults.length; i++) {
+            await client.query(
+                'INSERT INTO game_turns (game_id, player_id, roll_result, turn_number) VALUES ($1, $2, $3, $4)',
+                [gameId, playerId, rollResults[i], i + 1]
+            );
+        }
+    } catch (error) {
+        console.error('Error saving game turn:', error);
+    }
+};
+
 // Main server initialization
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
