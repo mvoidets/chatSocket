@@ -82,6 +82,91 @@ const getMessagesFromDB = async (room) => {
     }
 };
 
+//create or get game
+const createOrGetGame = async (room) => {
+    try {
+        const res = await client.query('SELECT * FROM games WHERE room_name = $1', [room]);
+        
+        // If the game exists, return the game state
+        if (res.rows.length > 0) {
+            return res.rows[0];
+        } else {
+            // If no game exists, create a new one
+            const newGameRes = await client.query(
+                'INSERT INTO games (room_name, current_turn) VALUES ($1, 1) RETURNING *',
+                [room]
+            );
+            return newGameRes.rows[0];
+        }
+    } catch (error) {
+        console.error('Error fetching/creating game:', error);
+        return null;
+    }
+};
+
+//save player
+const savePlayerTurn = async (gameId, playerId, chips, diceResult) => {
+    try {
+        const res = await client.query(
+            'INSERT INTO players (game_id, player_id, chips, dice_result) VALUES ($1, $2, $3, $4) ON CONFLICT (game_id, player_id) DO UPDATE SET chips = $3, dice_result = $4, updated_at = CURRENT_TIMESTAMP RETURNING *',
+            [gameId, playerId, chips, diceResult]
+        );
+        return res.rows[0];
+    } catch (error) {
+        console.error('Error saving player turn:', error);
+    }
+};
+
+//player turn
+const processTurn = async (gameId, playerId, rollResults) => {
+    const playersRes = await client.query('SELECT * FROM players WHERE game_id = $1', [gameId]);
+    const players = playersRes.rows;
+
+    const player = players.find(p => p.player_id === playerId);
+    
+    rollResults.forEach((roll) => {
+        if (roll === 'L') {
+            const leftPlayer = getLeftPlayer(players, playerId);
+            leftPlayer.chips++;
+            player.chips--;
+        } else if (roll === 'R') {
+            const rightPlayer = getRightPlayer(players, playerId);
+            rightPlayer.chips++;
+            player.chips--;
+        } else if (roll === 'C') {
+            // Add chips to the center pot (player 0)
+            const centerPlayer = players.find(p => p.player_id === 0);
+            centerPlayer.chips++;
+            player.chips--;
+        }
+    });
+
+    // Save the new player state in DB
+    for (const p of players) {
+        await savePlayerTurn(gameId, p.player_id, p.chips, p.dice_result);
+    }
+
+    return players; // Return the updated players list
+};
+
+//helper function
+const getLeftPlayer = (players, playerId) => {
+    const index = players.findIndex(p => p.player_id === playerId);
+    return players[(index - 1 + players.length) % players.length];
+};
+
+const getRightPlayer = (players, playerId) => {
+    const index = players.findIndex(p => p.player_id === playerId);
+    return players[(index + 1) % players.length];
+};
+//winner check
+const checkForWinner = (players) => {
+    const activePlayers = players.filter(player => player.chips > 0);
+    if (activePlayers.length === 1) {
+        return activePlayers[0].player_id;
+    }
+    return null;
+};
 
 // Main server initialization
 const app = next({ dev, hostname, port });
@@ -100,7 +185,19 @@ app.prepare().then(() => {
 
     io.on("connection", (socket) => {
         console.log(`${socket.id} has connected`);
+//game locgic
+// Example of processing player turn on the server
+socket.on("playerTurn", async ({ room, playerId, rollResults }) => {
+    console.log(`Player ${playerId} in room ${room} rolled: ${rollResults}`);
+    
+    // Process the turn (this would include the game logic such as L, R, C, and updating chips)
+    handleTurn(room, playerId, rollResults);
 
+    // After processing the turn, emit the updated game state to all players in the room
+    io.to(room).emit("gameStateUpdated", gameState[room]);
+});
+
+        
  // Handle createRoom event
         socket.on("createRoom", async (newRoom) => {
             const room = await createRoomInDB(newRoom);
@@ -180,6 +277,40 @@ app.prepare().then(() => {
             // Broadcast the message to the room
             io.to(room).emit("message", { sender, message });
         });
+
+//player turn
+        
+socket.on("playerTurn", async ({ room, playerId, rollResults }) => {
+    // Fetch or create the game
+    const game = await createOrGetGame(room);
+    
+    if (!game) return;
+
+    // Update game state (e.g., next turn, check for winner)
+    let currentTurn = game.current_turn;
+
+    // Simulate dice result processing
+    const updatedPlayers = await processTurn(game.id, playerId, rollResults);
+    
+    // Save the player’s turn result in the DB
+    await savePlayerTurn(game.id, playerId, updatedPlayers[playerId].chips, rollResults);
+
+    // Check for winner or end of game
+    const winner = checkForWinner(updatedPlayers);
+    if (winner) {
+        // Update game state with the winner
+        await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
+    }
+
+    // Increment the current turn
+    await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
+
+    // Emit the updated game state
+    io.to(room).emit("gameStateUpdated", updatedPlayers);
+});
+
+
+        
     });
 
  
