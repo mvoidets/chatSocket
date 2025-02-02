@@ -2,7 +2,8 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
-import { Client } from 'pg';
+import pkg from 'pg';
+const { Client } = pkg;
 
 // Initialize Next.js app and socket.io server
 const dev = process.env.NODE_ENV !== 'production';
