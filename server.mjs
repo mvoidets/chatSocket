@@ -82,7 +82,40 @@ app.prepare().then(() => {
             }
         });
 
+        
         // Other socket event handlers (join-room, message, etc.)
+                socket.on("join-room", async ({ room, username }) => {
+            console.log(`User ${username} joined room: ${room}`);
+            socket.join(room);
+
+            const roomRes = await client.query('SELECT id FROM rooms WHERE name = $1', [room]);
+            const roomId = roomRes.rows[0]?.id;
+
+            if (roomId) {
+                await client.query('INSERT INTO room_users (room_id, user_name) VALUES ($1, $2)', [roomId, username]);
+                console.log(`User ${username} added to room_users table`);
+                socket.to(room).emit("user_joined", `${username} joined the room`);
+
+                const messages = await getMessagesFromDB(room);
+                socket.emit("messageHistory", messages);
+            }
+        });
+
+        socket.on("leave-room", async (room) => {
+            console.log(`User left room: ${room}`);
+            socket.leave(room);
+
+            const roomRes = await client.query('SELECT id FROM rooms WHERE name = $1', [room]);
+            const roomId = roomRes.rows[0]?.id;
+
+            if (roomId) {
+                await client.query('DELETE FROM room_users WHERE room_id = $1 AND user_name = $2', [roomId, socket.id]);
+                console.log(`User removed from room_users table`);
+
+                socket.to(room).emit("user_left", `${socket.id} left the room`);
+            }
+        });
+
 
     });
 
