@@ -55,6 +55,34 @@ const createRoomInDB = async (newRoom) => {
     }
 };
 
+// Save message to the database
+const saveMessageToDatabase = async (room, message, sender) => {
+    try {
+        const res = await client.query(
+            'INSERT INTO messages (room_name, message, sender) VALUES ($1, $2, $3) RETURNING *',
+            [room, message, sender]
+        );
+        console.log('Message saved to DB:', res.rows[0]);
+    } catch (error) {
+        console.error('Error saving message to DB:', error);
+    }
+};
+
+// Fetch message history from DB
+const getMessagesFromDB = async (room) => {
+    try {
+        const res = await client.query(
+            'SELECT sender, message FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
+            [room]
+        );
+        return res.rows;
+    } catch (error) {
+        console.error('Error fetching messages from DB:', error);
+        return [];
+    }
+};
+
+
 // Main server initialization
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -142,9 +170,19 @@ app.prepare().then(() => {
                 socket.to(room).emit("user_left", `${socket.id} left the room`);
             }
         });
+       // Handle message event (sending messages in rooms)
+        socket.on("message", async ({ room, message, sender }) => {
+            console.log(`Received message in room ${room} from ${sender}: ${message}`);
 
+            // Save the message to the database
+            await saveMessageToDatabase(room, message, sender);
 
+            // Broadcast the message to the room
+            io.to(room).emit("message", { sender, message });
+        });
     });
+
+ 
 
     httpServer.listen(port, '0.0.0.0', () => {
         console.log(`Server is listening on http://${hostname}:${port}`);
