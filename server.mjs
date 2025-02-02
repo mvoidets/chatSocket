@@ -167,6 +167,19 @@ const checkForWinner = (players) => {
     }
     return null;
 };
+//save game
+const saveGameTurn = async (gameId, playerId, rollResults) => {
+    try {
+        for (let i = 0; i < rollResults.length; i++) {
+            await client.query(
+                'INSERT INTO game_turns (game_id, player_id, roll_result, turn_number) VALUES ($1, $2, $3, $4)',
+                [gameId, playerId, rollResults[i], i + 1]
+            );
+        }
+    } catch (error) {
+        console.error('Error saving game turn:', error);
+    }
+};
 
 // game turn history
 const saveGameTurn = async (gameId, playerId, rollResults) => {
@@ -305,7 +318,9 @@ socket.on("playerTurn", async ({ room, playerId, rollResults }) => {
 
     // Simulate dice result processing
     const updatedPlayers = await processTurn(game.id, playerId, rollResults);
-    
+
+      // Save the player's turn (historical data)
+    await saveGameTurn(game.id, playerId, rollResults);
     // Save the player’s turn result in the DB
     await savePlayerTurn(game.id, playerId, updatedPlayers[playerId].chips, rollResults);
 
