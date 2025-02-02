@@ -2,7 +2,8 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
-import { Client } from 'pg'; // Import PostgreSQL client
+import pkg from 'pg';
+const { Client } = pkg;
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
