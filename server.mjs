@@ -147,7 +147,7 @@ app.prepare().then(() => {
     });
 
 io.on('connection', (socket) => {
-    io.emit('availableRooms', await getRoomsFromDB());
+ //   io.emit('availableRooms', await getRoomsFromDB());
     // Handle room creation
     socket.on('createRoom', async (newRoom) => {
       try {
