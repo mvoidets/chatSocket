@@ -33,17 +33,27 @@ const getRoomsFromDB = async () => {
 };
 
 // Handle room creation
-const createRoomInDB = async (newRoom) => {
-    try {
-        const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
-        if (checkRes.rows.length > 0) return null;
-        const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
-        return res.rows[0];
-    } catch (error) {
-        console.error('Error creating room in DB:', error);
-        return null;
+// const createRoomInDB = async (newRoom) => {
+//     try {
+//         const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
+//         if (checkRes.rows.length > 0) return null;
+//         const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
+//         return res.rows[0];
+//     } catch (error) {
+//         console.error('Error creating room in DB:', error);
+//         return null;
+//     }
+// };
+
+socket.on('createRoom', async (newRoom) => {
+    const room = await createRoomInDB(newRoom);
+    if (room) {
+        console.log('Room created:', room);
+        io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
+    } else {
+        console.log('Failed to create room');
     }
-};
+});
 
 // Save message to the database
 const saveMessageToDatabase = async (room, message, sender) => {
