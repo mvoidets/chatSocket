@@ -147,29 +147,40 @@ app.prepare().then(() => {
     });
 
 io.on('connection', (socket) => {
+
+    io.on('connection', (socket) => {
+    socket.on('get-available-rooms', async () => {
+        const rooms = await getRoomsFromDB();
+        io.emit('availableRooms', rooms);  // Emit rooms back to the client
+    });
+});
  //   io.emit('availableRooms', await getRoomsFromDB());
     // Handle room creation
-    socket.on('createRoom', async (newRoom) => {
-      try {
-        const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
-        if (checkRes.rows.length > 0) return;
-        const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
-        io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
-      } catch (error) {
-        console.error('Error creating room:', error);
-      }
-    });
+socket.on("createRoom", async (newRoom) => {
+  if (!newRoom) return; // Don't proceed if no room name
+
+  try {
+    const createdRoom = await createRoomInDB(newRoom);
+    if (createdRoom) {
+      io.emit('availableRooms', await getRoomsFromDB());  // Emit updated rooms list
+    } else {
+      console.log('Room already exists');
+    }
+  } catch (error) {
+    console.error('Error creating room:', error);
+  }
+});
 
   
         // Handle join-room event
     // Handle join-room event (accepts chat name)
-    socket.on('join-room', async ({ room, chatName }) => {
-      console.log(`User with chat name ${chatName} joining room: ${room}`);
-      socket.join(room);
-      socket.emit("messageHistory", await getMessagesFromDB(room)); // Load message history
-      io.to(room).emit("user_joined", `${chatName} joined the room`);
-    });
-
+  socket.on("join-room", async ({ room, chatName }) => {
+  console.log(`User with chat name ${chatName} joining room: ${room}`);
+  socket.join(room);
+  const messageHistory = await getMessagesFromDB(room);
+  socket.emit("messageHistory", messageHistory);  // Send message history to the user
+  io.to(room).emit("user_joined", `${chatName} joined the room`);
+});
         // Handle leave-room event
         socket.on("leave-room", async (room) => {
             console.log(`User left room: ${room}`);
