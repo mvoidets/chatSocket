@@ -65,6 +65,21 @@ const saveMessageToDatabase = async (room, message, sender) => {
     }
 };
 
+// get history or msgs
+
+export async function getMessagesFromDB(roomName) {
+    try {
+        const res = await client.query(
+            'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
+            [roomName]
+        );
+        return res.rows; // Return messages ordered by creation time
+    } catch (error) {
+        console.error('Error fetching messages from DB:', error);
+        return []; // Return empty array if there's an error
+    }
+}
+
 // Game-related functions (processing player turns, checking for winners, etc.)
 const createOrGetGame = async (room) => {
     try {
@@ -121,24 +136,7 @@ const checkForWinner = (players) => {
     const activePlayers = players.filter(player => player.chips > 0);
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
 };
-//get session username
-// export default async function handler(req, res) {
-//     // Retrieve the session from the request
-//     const session = await getSession({ req });
 
-//     // Check if a session exists (i.e., the user is authenticated)
-//     if (session) {
-//         // The username is available as session.user.name
-//         const username = session.user.name;
-//         console.log('Authenticated user:', username);
-
-//         // You can now use the username for your chat functionality or other logic
-//         res.status(200).json({ message: `Hello, ${username}` });
-//     } else {
-//         // If there is no session (user is not logged in), return unauthorized
-//         res.status(401).json({ error: "Unauthorized" });
-//     }
-// }
 
 // Main server initialization
 const app = next({ dev, hostname, port });
