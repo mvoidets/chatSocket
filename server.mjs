@@ -1,7 +1,6 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
-import { getSession } from 'next-auth/react'; 
 import pkg from 'pg';
 const { Client } = pkg;
 
@@ -148,68 +147,27 @@ app.prepare().then(() => {
     });
 
 io.on('connection', (socket) => {
-    // Extract token from the handshake query
-    const token = socket.handshake.query.token;
-
-    // Create a fake `req` object to pass to getSession
-    const req = {
-        cookies: {
-            'next-auth.session-token': token,
-        },
-    };
-
-    // Authenticate the user
-    getSession({ req })
-        .then((session) => {
-            if (session) {
-                console.log('Authenticated user:', session.user);
-                socket.emit('authenticated', { message: 'You are authenticated', user: session.user });
-            } else {
-                console.log('Session invalid');
-                socket.emit('unauthorized', { error: 'Unauthorized' });  // Send a response to notify the client
-                socket.disconnect();
-            }
-        })
-        .catch((error) => {
-            console.error('Error checking session:', error);
-            socket.emit('unauthorized', { error: 'Unauthorized' });  // Send a response to notify the client
-            socket.disconnect();
-        });
-
-    // Handle createRoom event after session check
+    // Handle room creation
     socket.on('createRoom', async (newRoom) => {
-        // Check if user is authenticated before allowing room creation
-        const session = await getSession({ req });
-        if (session) {
-            const room = await createRoomInDB(newRoom);
-            if (room) {
-                console.log('Room created:', room);
-                io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
-            } else {
-                console.log('Failed to create room');
-                socket.emit('createRoomError', { error: 'Failed to create room' });
-            }
-        } else {
-            console.log('User is not authenticated, cannot create room');
-            socket.emit('unauthorized', { error: 'Unauthorized to create room' });
-        }
+      try {
+        const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
+        if (checkRes.rows.length > 0) return;
+        const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
+        io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
+      } catch (error) {
+        console.error('Error creating room:', error);
+      }
     });
 
-
+  
         // Handle join-room event
-        socket.on("join-room", async ({ room, userId }) => {
-            console.log(`User with ID ${userId} joining room: ${room}`);
-            const userRes = await client.query('SELECT user_name FROM users WHERE id = $1', [userId]);
-            const username = userRes.rows[0]?.user_name;
-
-            if (username) {
-                socket.join(room);
-                socket.emit("messageHistory", await getMessagesFromDB(room)); // Load message history
-                io.to(room).emit("user_joined", `${username} joined the room`);
-            } else {
-                socket.emit("error", "User not found");
-            }
-        });
+    // Handle join-room event (accepts chat name)
+    socket.on('join-room', async ({ room, chatName }) => {
+      console.log(`User with chat name ${chatName} joining room: ${room}`);
+      socket.join(room);
+      socket.emit("messageHistory", await getMessagesFromDB(room)); // Load message history
+      io.to(room).emit("user_joined", `${chatName} joined the room`);
+    });
 
         // Handle leave-room event
         socket.on("leave-room", async (room) => {
