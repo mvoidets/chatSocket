@@ -145,28 +145,24 @@ app.prepare().then(() => {
         },
     });
 
-    io.on("connection", (socket) => {
-        console.log(`${socket.id} has connected`);
+  io.on("connection", (socket) => {
+  const token = socket.handshake.query.token; // Get token from query
 
-        // Get the token from the handshake query
-        const token = socket.handshake.query.token;
-        if (token) {
-            getServerSession({ req: { headers: { cookie: `next-auth.session-token=${token}` } } }, authOptions)
-                .then(userSession => {
-                    if (userSession) {
-                        socket.user = userSession.user;
-                        console.log(`Authenticated as ${userSession.user.username}`);
-                    } else {
-                        socket.disconnect(true); // Disconnect if not authenticated
-                    }
-                })
-                .catch(err => {
-                    console.error('Session error:', err);
-                    socket.disconnect(true); // Disconnect on error
-                });
-        } else {
-            socket.disconnect(true); // Disconnect if no token is provided
-        }
+  // You can now use `token` to validate the session
+  getServerSession({ req: { cookies: { "next-auth.session-token": token } } }, authOptions)
+    .then((session) => {
+      if (session) {
+        console.log('User authenticated:', session.user);
+      } else {
+        console.log('Session invalid');
+        socket.disconnect();
+      }
+    })
+    .catch((error) => {
+      console.error('Error checking session:', error);
+      socket.disconnect();
+    });
+
 
         // Handle createRoom event
         socket.on("createRoom", async (newRoom) => {
