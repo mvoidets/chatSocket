@@ -149,19 +149,21 @@ app.prepare().then(() => {
   const token = socket.handshake.query.token; // Get token from query
 
   // You can now use `token` to validate the session
-  getServerSession({ req: { cookies: { "next-auth.session-token": token } } }, authOptions)
-    .then((session) => {
-      if (session) {
-        console.log('User authenticated:', session.user);
-      } else {
-        console.log('Session invalid');
-        socket.disconnect();
-      }
-    })
-    .catch((error) => {
-      console.error('Error checking session:', error);
-      socket.disconnect();
-    });
+ // Use getSession to retrieve the session based on the token
+        getSession({ req })
+            .then((session) => {
+                if (session) {
+                    console.log('Authenticated user:', session.user);
+                    socket.emit('authenticated', { message: 'You are authenticated', user: session.user });
+                } else {
+                    console.log('Session invalid');
+                    socket.disconnect();
+                }
+            })
+            .catch((error) => {
+                console.error('Error checking session:', error);
+                socket.disconnect();
+            });
 
 
         // Handle createRoom event
