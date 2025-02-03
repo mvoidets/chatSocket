@@ -30,6 +30,15 @@ const getRoomsFromDB = async () => {
         return [];
     }
 };
+const handleRemoveRoom = () => {
+  if (room) {
+    socket.emit("removeRoom", room);  // Emit deleteRoom event to the server
+    setRoom("");  // Clear the room state after deletion
+    setJoined(false);  // Reset joined state
+  } else {
+    console.log("Please select a room to delete");
+  }
+};
 
 // Handle room creation
 const createRoomInDB = async (newRoom) => {
