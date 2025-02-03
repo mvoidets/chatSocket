@@ -185,13 +185,30 @@ app.prepare().then(() => {
 
        
         // Handle join-room event (accepts chat name)
-        socket.on("join-room", async ({ room, chatName }) => {
-            console.log(`User with chat name ${chatName} joining room: ${room}`);
-            socket.join(room);
-            const messageHistory = await getMessagesFromDB(room);
-            socket.emit("messageHistory", messageHistory);  // Send message history to the user
-            io.to(room).emit("user_joined", `${chatName} joined the room`);
+        // socket.on("join-room", async ({ room, chatName }) => {
+        //     console.log(`User with chat name ${chatName} joining room: ${room}`);
+        //     socket.join(room);
+        //     const messageHistory = await getMessagesFromDB(room);
+        //     socket.emit("messageHistory", messageHistory);  // Send message history to the user
+        //     io.to(room).emit("user_joined", `${chatName} joined the room`);
+        // });
+
+         socket.on('join-room', async ({ room, chatName }) => {
+          console.log(`User with chat name ${chatName} joining room: ${room}`);
+          socket.join(room);
+
+        // Fetch message history for the room
+          try {
+            const messages = await getMessagesFromDB(room);
+            socket.emit('messageHistory', messages); // Send message history to the user
+          } catch (error) {
+            console.error('Error fetching message history:', error);
+          }
+
+        // Broadcast that the user joined the room
+          io.to(room).emit('user_joined', `${chatName} joined the room`);
         });
+
         // Handle leave-room event
         socket.on("leave-room", async (room) => {
             console.log(`User left room: ${room}`);
