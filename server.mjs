@@ -20,24 +20,6 @@ client.connect().then(() => {
     console.error('Failed to connect to PostgreSQL:', error);
 });
 
-//get session username
-export default async function handler(req, res) {
-  // Retrieve the session from the request
-  const session = await getSession({ req });
-
-  // Check if a session exists (i.e., the user is authenticated)
-  if (session) {
-    // The username is available as session.user.name
-    const username = session.user.name;  
-    console.log('Authenticated user:', username);
-
-    // You can now use the username for your chat functionality or other logic
-    res.status(200).json({ message: `Hello, ${username}` });
-  } else {
-    // If there is no session (user is not logged in), return unauthorized
-    res.status(401).json({ error: "Unauthorized" });
-  }
-}
 
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
@@ -129,6 +111,24 @@ const checkForWinner = (players) => {
     const activePlayers = players.filter(player => player.chips > 0);
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
 };
+//get session username
+export default async function handler(req, res) {
+  // Retrieve the session from the request
+  const session = await getSession({ req });
+
+  // Check if a session exists (i.e., the user is authenticated)
+  if (session) {
+    // The username is available as session.user.name
+    const username = session.user.name;  
+    console.log('Authenticated user:', username);
+
+    // You can now use the username for your chat functionality or other logic
+    res.status(200).json({ message: `Hello, ${username}` });
+  } else {
+    // If there is no session (user is not logged in), return unauthorized
+    res.status(401).json({ error: "Unauthorized" });
+  }
+}
 
 // Main server initialization
 const app = next({ dev, hostname, port });
