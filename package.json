@@ -8,7 +8,7 @@
     "start": "next build && ts-node server.mjs"
   },
   "dependencies": {
-     "next": "^12.0.0",
+     "next": "latest",
     "next-auth": "^5.0.0-beta.25",
      "pg": "^8.13.1",
     "react": "^17.0.0",
