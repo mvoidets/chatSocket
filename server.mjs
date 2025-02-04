@@ -82,35 +82,37 @@ const createOrGetGame = async (room) => {
 };
 
 // Process player turns (game logic for L, R, C)
-const processTurn = async (gameId, playerId, rollResults) => {
+const processTurn = async (gameId) => {
+    // Get all players in the game
     const playersRes = await client.query('SELECT * FROM players WHERE game_id = $1', [gameId]);
     const players = playersRes.rows;
-    const player = players.find(p => p.player_id === playerId);
 
-    // Process each dice roll result (L, R, C)
-    rollResults.forEach((roll) => {
-        if (roll === 'L') {
-            const leftPlayer = getLeftPlayer(players, playerId);
-            leftPlayer.chips++;
-            player.chips--;
-        } else if (roll === 'R') {
-            const rightPlayer = getRightPlayer(players, playerId);
-            rightPlayer.chips++;
-            player.chips--;
-        } else if (roll === 'C') {
-            const centerPlayer = players.find(p => p.player_id === 0); // Assuming center player has player_id 0
-            centerPlayer.chips++;
-            player.chips--;
+    // Get the current turn from the game
+    const currentTurnRes = await client.query('SELECT current_turn FROM games WHERE id = $1', [gameId]);
+    const currentTurn = currentTurnRes.rows[0].current_turn;
+
+    // Determine which player’s turn it is based on the index
+    const currentPlayer = players[currentTurn % players.length];
+
+    // Notify everyone in the game of whose turn it is
+    io.to(gameId).emit('current-turn', `${currentPlayer.name}'s turn`);
+
+    // Update the turn in the database for the next round
+    await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE id = $1', [gameId]);
+
+    // Check if there are fewer than 6 players, and add AI players if necessary
+    const aiNeeded = 6 - players.length;
+    if (aiNeeded > 0) {
+        for (let i = 0; i < aiNeeded; i++) {
+            const aiName = `AI-${i + 1}`;
+            await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3)', [gameId, aiName, 3]);
+            console.log(`AI player added: ${aiName}`);
         }
-    });
-
-    // Save updated player data
-    for (const p of players) {
-        await savePlayerTurn(gameId, p.player_id, p.chips, p.dice_result);
     }
 
     return players;
 };
+
 
 const getLeftPlayer = (players, playerId) => {
     const index = players.findIndex(p => p.player_id === playerId);
@@ -171,21 +173,35 @@ app.prepare().then(() => {
         });
 
         // Handle join-room event
-        socket.on('join-room', async ({ room, chatName }) => {
-            console.log(`User with chat name ${chatName} joining room: ${room}`);
-            socket.join(room);
+      socket.on('join-room', async ({ room, chatName }) => {
+        console.log(`User with chat name ${chatName} joining room: ${room}`);
+        socket.join(room);
 
-            // Fetch message history for the room
-            try {
-                const messages = await getMessagesFromDB(room);
-                socket.emit('messageHistory', messages); // Send message history to the user
-            } catch (error) {
-                console.error('Error fetching message history:', error);
-            }
+       try {
+        // Insert player into the players table in the database
+        const game = await createOrGetGame(room); // Get or create game if it doesn't exist
+        if (!game) {
+            console.error('Game not found!');
+            return;
+        }
 
-            // Broadcast that the user joined the room
-            io.to(room).emit('user_joined', `${chatName} joined the room`);
-        });
+        // Add player to the database if they don't already exist
+        const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND name = $2', [game.id, chatName]);
+        if (checkPlayer.rows.length === 0) {
+            const res = await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
+            console.log(`Player added: ${chatName}`);
+        }
+
+        // Fetch message history for the room
+        const messages = await getMessagesFromDB(room);
+        socket.emit('messageHistory', messages); // Send message history to the user
+
+        // Broadcast that the user joined the room
+        io.to(room).emit('user_joined', `${chatName} joined the room`);
+    } catch (error) {
+        console.error('Error joining room:', error);
+    }
+});
 
         // Handle leave-room event
         socket.on('leave-room', (room) => {
@@ -223,20 +239,30 @@ app.prepare().then(() => {
 
         // Handle playerTurn event (game logic)
         socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
-            const game = await createOrGetGame(room);
-            if (!game) return;
+    const game = await createOrGetGame(room);
+    if (!game) return;
 
-            const updatedPlayers = await processTurn(game.id, playerId, rollResults);
-            const winner = checkForWinner(updatedPlayers);
-            if (winner) {
-                await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
-                console.log("Winner is: ", winner);
-            }
+    // Process the player's turn and update game state
+    const updatedPlayers = await processTurn(game.id);
 
-            await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
-            io.to(room).emit('gameStateUpdated', updatedPlayers);
-        });
-    });
+    // Broadcast updated game state to all players
+    io.to(room).emit('gameStateUpdated', updatedPlayers);
+});
+    //     socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
+    //         const game = await createOrGetGame(room);
+    //         if (!game) return;
+
+    //         const updatedPlayers = await processTurn(game.id, playerId, rollResults);
+    //         const winner = checkForWinner(updatedPlayers);
+    //         if (winner) {
+    //             await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
+    //             console.log("Winner is: ", winner);
+    //         }
+
+    //         await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
+    //         io.to(room).emit('gameStateUpdated', updatedPlayers);
+    //     });
+    // });
 
     httpServer.listen(port, '0.0.0.0', () => {
         console.log(`Server listening on http://${hostname}:${port}`);
