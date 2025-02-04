@@ -227,20 +227,20 @@ app.prepare().then(() => {
         socket.removeAllListeners('playerTurn');
        // socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
         // Handle get-available-rooms event
-        socket.on('get-available-rooms', async () => {
-            const rooms = await getRoomsFromDB();
-            console.log('available rooms:', rooms);
-            io.emit('availableRooms', rooms);
-        });
+        // socket.on('get-available-rooms', async () => {
+        //     const rooms = await getRoomsFromDB();
+        //     console.log('available rooms:', rooms);
+        //     io.emit('availableRooms', rooms);
+        // });
  // Handle fetching available rooms
-  //      socket.on('get-available-rooms', async () => {
-  //          try {
-  //              const rooms = await getRoomsFromDB();
-  //              io.emit('availableRooms', rooms);
-  //          } catch (error) {
-  //              console.error('Error fetching available rooms:', error);
-   //         }
-  //      });
+       socket.on('get-available-rooms', async () => {
+           try {
+               const rooms = await getRoomsFromDB();
+               io.emit('availableRooms', rooms);
+           } catch (error) {
+               console.error('Error fetching available rooms:', error);
+           }
+       });
 
 
         // Handle room creation
