@@ -274,8 +274,8 @@ app.prepare().then(() => {
 
 
         // Handle join-room event
-        socket.on('join-room', async ({ room, chatName }) => {
-    console.log(`User with chat name ${chatName} joining room: ${room}`);
+        socket.on('join-room', async ({ room, userName }) => {
+    console.log(`User with chat name ${userName} joining room: ${room}`);
     socket.join(room);
 
     try {
@@ -287,13 +287,13 @@ app.prepare().then(() => {
         }
 
         // Check if the player already exists in the players table for this game
-        const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, chatName]);
+        const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
 
         // If the player doesn't exist, add them to the players table
         if (checkPlayer.rows.length === 0) {
             // Add the player to the database
-            const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
-            console.log(`Player added: ${chatName}`);
+            const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
+            console.log(`Player added: ${userName}`);
         }
 
         // Fetch the message history for the room
@@ -301,7 +301,7 @@ app.prepare().then(() => {
         socket.emit('messageHistory', messages); // Send message history to the user
 
         // Broadcast that the user joined the room
-        io.to(room).emit('user_joined', `${chatName} joined the room`);
+        io.to(room).emit('user_joined', `${userName} joined the room`);
     } catch (error) {
         console.error('Error joining room:', error);
     }
