@@ -227,7 +227,7 @@ const updatePlayerTurn = async (gameId, currentPlayerId, rollResults) => {
         // Process the current player's turn (update chips and roll results)
         const result = await client.query('SELECT chips FROM players WHERE game_id = $1 AND player_id = $2', [gameId, currentPlayerId]);
         const chips = result.rows[0]?.chips; // Get current player's chips before processing
-        
+         console.log(`Processing turn for player: ${currentPlayerId}, current chips: ${chips}`);
         await processPlayerTurn(gameId, currentPlayerId, chips, rollResults);  // Process the turn (chips and roll results)
 
         // Get the current player's turn number
@@ -237,6 +237,7 @@ const updatePlayerTurn = async (gameId, currentPlayerId, rollResults) => {
         );
         const currentTurn = currentTurnRes.rows[0];
         const nextTurnNumber = currentTurn.turn_number + 1;
+console.log(`Current player's turn number: ${currentTurn ? currentTurn.turn_number : 'No previous turn'}, next turn: ${nextTurnNumber}`);
 
         // Get the next player (you can define this logic according to your game rules)
         const nextPlayerRes = await client.query(
@@ -244,20 +245,32 @@ const updatePlayerTurn = async (gameId, currentPlayerId, rollResults) => {
             [gameId, nextTurnNumber] // Find the next player based on turn_number
         );
         const nextPlayer = nextPlayerRes.rows[0];
+	if (!nextPlayer) {
+            console.error('Next player not found!');
+            return;
+        }
+	    console.log(`Next player: ${nextPlayer.playername}`);
 
         // Remove the current player’s turn (complete their turn)
         await client.query('DELETE FROM players_turn WHERE game_id = $1 AND player_id = $2', [gameId, currentPlayerId]);
 
         // Insert the next player's turn into the players_turn table
-        await client.query(
-            'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, $3)',
+        //await client.query(
+        //    'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, $3)',
+        //    [gameId, nextPlayer.id, nextTurnNumber]
+       // );
+
+        // Step 5: Insert the next player's turn into the players_turn table
+        const insertTurnRes = await client.query(
+            'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, $3) RETURNING *',
             [gameId, nextPlayer.id, nextTurnNumber]
         );
+
+        console.log('Inserted next player turn:', insertTurnRes.rows[0]);
     } catch (error) {
         console.error('Error updating player turn:', error);
     }
 };
-
 // Main server initialization
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
