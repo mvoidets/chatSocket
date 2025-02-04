@@ -156,21 +156,35 @@ app.prepare().then(() => {
         });
 
         // Handle room creation
-        socket.on('createRoom', async (newRoom) => {
-            if (!newRoom) return; // Don't proceed if no room name
+// Handle room creation
+socket.on('createRoom', async (newRoom) => {
+    try {
+        const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
+        if (checkRes.rows.length > 0) {
+            console.log('Room already exists');
+            return;
+        }
 
-            try {
-                const createdRoom = await createRoomInDB(newRoom);
-                console.log(`new room: ${newRoom} has been created`);
-                if (createdRoom) {
-                    io.emit('availableRooms', await getRoomsFromDB());  // Emit updated rooms list
-                } else {
-                    console.log('Room already exists');
-                }
-            } catch (error) {
-                console.error('Error creating room:', error);
-            }
-        });
+        const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
+        console.log(`Room created: ${newRoom}`);
+        
+        // Emit the updated available rooms
+        io.emit('availableRooms', await getRoomsFromDB());
+    } catch (error) {
+        console.error('Error creating room:', error);
+    }
+});
+
+// Handle fetching available rooms
+socket.on('get-available-rooms', async () => {
+    try {
+        const rooms = await getRoomsFromDB();
+        io.emit('availableRooms', rooms);
+    } catch (error) {
+        console.error('Error fetching available rooms:', error);
+    }
+});
+
 
         // Handle join-room event
       socket.on('join-room', async ({ room, chatName }) => {
