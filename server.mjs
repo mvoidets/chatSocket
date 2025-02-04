@@ -115,11 +115,11 @@ const createOrGetGame = async (room) => {
 
 
 //add player to game
-const addPlayerToGame = async (gameId, playerName, chips, isAI = false) => {
+const addPlayerToGame = async (gameId, playername, chips, isAI = false) => {
     try {
         const playerRes = await client.query(
-            'INSERT INTO players (game_id, playerName, chip,, is_ai, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
-            [gameId, playerName, chips, isAI]
+            'INSERT INTO players (game_id, playername, chip, is_ai, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
+            [gameId, playername, chips, isAI]
         );
 
         return playerRes.rows[0];
@@ -148,7 +148,7 @@ const updateGameState = async (room, playerId, rollResults) => {
         return {
             game: game,
             players: players,
-			chips: chips
+	    chips: chips
         };
     } catch (error) {
         console.error('Error updating game state:', error);
@@ -275,34 +275,37 @@ app.prepare().then(() => {
 
         // Handle join-room event
         socket.on('join-room', async ({ room, chatName }) => {
-            console.log(`User with chat name ${chatName} joining room: ${room}`);
-            socket.join(room);
+    console.log(`User with chat name ${chatName} joining room: ${room}`);
+    socket.join(room);
 
-            try {
-                // Insert player into the players table in the database
-                const game = await createOrGetGame(room); // Get or create game if it doesn't exist
-                if (!game) {
-                    console.error('Game not found!');
-                    return;
-                }
+    try {
+        // Get or create the game if it doesn't exist
+        const game = await createOrGetGame(room);
+        if (!game) {
+            console.error('Game not found!');
+            return;
+        }
 
-                // Add player to the database if they don't already exist
-                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, chatName]);
-                if (checkPlayer.rows.length === 0) {
-                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
-                    console.log(`Player added: ${chatName}`);
-                }
+        // Check if the player already exists in the players table for this game
+        const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, chatName]);
 
-                // Fetch message history for the room
-                const messages = await getMessagesFromDB(room);
-                socket.emit('messageHistory', messages); // Send message history to the user
+        // If the player doesn't exist, add them to the players table
+        if (checkPlayer.rows.length === 0) {
+            // Add the player to the database
+            const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
+            console.log(`Player added: ${chatName}`);
+        }
 
-                // Broadcast that the user joined the room
-                io.to(room).emit('user_joined', `${chatName} joined the room`);
-            } catch (error) {
-                console.error('Error joining room:', error);
-            }
-        });
+        // Fetch the message history for the room
+        const messages = await getMessagesFromDB(room);
+        socket.emit('messageHistory', messages); // Send message history to the user
+
+        // Broadcast that the user joined the room
+        io.to(room).emit('user_joined', `${chatName} joined the room`);
+    } catch (error) {
+        console.error('Error joining room:', error);
+    }
+});
 
         // Handle leave-room event
         socket.on('leave-room', (room) => {
