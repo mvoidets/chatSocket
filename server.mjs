@@ -1,3 +1,5 @@
+//doesnt work
+
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
@@ -80,7 +82,7 @@ const createOrGetGame = async (room) => {
 
         // Check if the room exists in the rooms table
         const roomRes = await client.query('SELECT * FROM rooms WHERE name = $1', [room]);
-        
+
         if (roomRes.rows.length === 0) {
             // Room doesn't exist, insert the room into the rooms table
             await client.query('INSERT INTO rooms (name) VALUES ($1)', [room]);
@@ -112,11 +114,11 @@ const createOrGetGame = async (room) => {
 
 
 //add player to game
-const addPlayerToGame = async (gameId, playerName, isAI = false) => {
+const addPlayerToGame = async (gameId, playerName, chips, isAI = false) => {
     try {
         const playerRes = await client.query(
-            'INSERT INTO players (game_id, player_name, is_ai, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
-            [gameId, playerName, isAI]
+            'INSERT INTO players (game_id, playerName, chip, is_ai, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
+            [gameId, playerName, chips, isAI]
         );
 
         return playerRes.rows[0];
@@ -144,7 +146,8 @@ const updateGameState = async (room, playerId, rollResults) => {
 
         return {
             game: game,
-            players: players
+            players: players,
+            chips: chips
         };
     } catch (error) {
         console.error('Error updating game state:', error);
@@ -173,8 +176,8 @@ const processTurn = async (gameId) => {
     return players;
 };
 
-const processPlayerTurn = async (gameId, playerId, rollResults) => {
-  
+const processPlayerTurn = async (gameId, playerId, chip, rollResults) => {
+
     // Update player chips and roll results here
     const chipsBeforeTurn = 3;  // Placeholder, get from DB
     const chipsAfterTurn = chipsBeforeTurn - calculateChipsAfterTurn(rollResults);
@@ -222,25 +225,25 @@ app.prepare().then(() => {
             credentials: true,
         },
     });
-socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
+    socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
 
     io.on('connection', (socket) => {
         console.log('Socket connected');
         console.log(`A player has connected`);
         socket.removeAllListeners('playerTurn');
-        
-        
-  // Handle fetching available rooms
-  socket.on('get-available-rooms', async () => {
-    try {
-        const rooms = await getRoomsFromDB();
-        io.emit('availableRooms', rooms);
-    } catch (error) {
-        console.error('Error fetching available rooms:', error);
-    }
-});
 
-      
+
+        // Handle fetching available rooms
+        socket.on('get-available-rooms', async () => {
+            try {
+                const rooms = await getRoomsFromDB();
+                io.emit('availableRooms', rooms);
+            } catch (error) {
+                console.error('Error fetching available rooms:', error);
+            }
+        });
+
+
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
             try {
@@ -260,77 +263,77 @@ socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific s
             }
         });
 
-      
+
 
         // Handle join-room event
-   socket.on('join-room', async ({ room, chatName }) => {
-    console.log(`User with chat name ${chatName} joining room: ${room}`);
-    socket.join(room);
+        socket.on('join-room', async ({ room, chatName }) => {
+            console.log(`User with chat name ${chatName} joining room: ${room}`);
+            socket.join(room);
 
-    try {
-        // Insert player into the players table in the database
-        const game = await createOrGetGame(room); // Get or create game if it doesn't exist
-        if (!game) {
-            console.error('Game not found!');
-            return;
-        }
+            try {
+                // Insert player into the players table in the database
+                const game = await createOrGetGame(room); // Get or create game if it doesn't exist
+                if (!game) {
+                    console.error('Game not found!');
+                    return;
+                }
 
-        // Add player to the database if they don't already exist
-        const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND name = $2', [game.id, chatName]);
-        if (checkPlayer.rows.length === 0) {
-            const res = await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
-            console.log(`Player added: ${chatName}`);
-        }
+                // Add player to the database if they don't already exist
+                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND name = $2', [game.id, chatName]);
+                if (checkPlayer.rows.length === 0) {
+                    const res = await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
+                    console.log(`Player added: ${chatName}`);
+                }
 
-        // Add AI players if there are fewer than 6 players in the room
-        let currentPlayers = await client.query('SELECT * FROM players WHERE game_id = $1', [game.id]);
-        while (currentPlayers.rows.length < 6) {
-            const aiPlayerName = `AI Player ${currentPlayers.rows.length + 1}`;
-            await client.query('INSERT INTO players (game_id, name, chips, is_ai) VALUES ($1, $2, $3, $4) RETURNING *', [game.id, aiPlayerName, 3, true]); // Add AI player with 3 chips
-            currentPlayers = await client.query('SELECT * FROM players WHERE game_id = $1', [game.id]);
-        }
+                // Add AI players if there are fewer than 6 players in the room
+                let currentPlayers = await client.query('SELECT * FROM players WHERE game_id = $1', [game.id]);
+                while (currentPlayers.rows.length < 6) {
+                    const aiPlayerName = `AI Player ${currentPlayers.rows.length + 1}`;
+                    await client.query('INSERT INTO players (game_id, name, chips, is_ai) VALUES ($1, $2, $3, $4) RETURNING *', [game.id, aiPlayerName, 3, true]); // Add AI player with 3 chips
+                    currentPlayers = await client.query('SELECT * FROM players WHERE game_id = $1', [game.id]);
+                }
 
-        // Fetch message history for the room
-        const messages = await getMessagesFromDB(room);
-        socket.emit('messageHistory', messages); // Send message history to the user
+                // Fetch message history for the room
+                const messages = await getMessagesFromDB(room);
+                socket.emit('messageHistory', messages); // Send message history to the user
 
-        // Broadcast that the user joined the room
-        io.to(room).emit('user_joined', `${chatName} joined the room`);
+                // Broadcast that the user joined the room
+                io.to(room).emit('user_joined', `${chatName} joined the room`);
 
-        // Emit the updated players list after adding AI players (if any)
-        io.to(room).emit('gameStateUpdated', currentPlayers.rows);
-    } catch (error) {
-        console.error('Error joining room:', error);
-    }
-});
+                // Emit the updated players list after adding AI players (if any)
+                io.to(room).emit('gameStateUpdated', currentPlayers.rows);
+            } catch (error) {
+                console.error('Error joining room:', error);
+            }
+        });
 
         // Handle leave-room event
-      socket.on('leave-room', async (room, playerId) => {
-    console.log(`User with player ID ${playerId} left room: ${room}`);
-    socket.leave(room);
+        socket.on('leave-room', async (room, playerId) => {
+            console.log(`User with player ID ${playerId} left room: ${room}`);
+            socket.leave(room);
 
-    try {
-        // Optionally remove the player from the database
-        await client.query('DELETE FROM players WHERE game_id = $1 AND player_id = $2', [room, playerId]);
+            try {
+                // Optionally remove the player from the database
+                await client.query('DELETE FROM players WHERE game_id = $1 AND player_id = $2', [room, playerId]);
 
-        // Optionally, update game state and check if game should be ended or adjusted
-        const gameState = await getGameState(room); // Retrieve current game state
-        const remainingPlayers = gameState.players.filter(player => player.id !== playerId);
+                // Optionally, update game state and check if game should be ended or adjusted
+                const gameState = await getGameState(room); // Retrieve current game state
+                const remainingPlayers = gameState.players.filter(player => player.id !== playerId);
 
-        if (remainingPlayers.length === 0) {
-            // If no players remain, you could consider ending the game
-            console.log(`No players left in room ${room}, ending the game.`);
-            await client.query('DELETE FROM games WHERE game_id = $1', [room]); // Remove game from DB
-            io.to(room).emit('game-ended', 'The game has been ended because no players remain.');
-        } else {
-            // Otherwise, update game state and notify remaining players
-            io.to(room).emit('gameStateUpdated', { players: remainingPlayers });
-            io.to(room).emit('user_left', `${socket.id} left the room`);
-        }
-    } catch (error) {
-        console.error('Error when a user leaves the room:', error);
-    }
-});
+                if (remainingPlayers.length === 0) {
+                    // If no players remain, you could consider ending the game
+                    console.log(`No players left in room ${room}, ending the game.`);
+                    await client.query('DELETE FROM games WHERE game_id = $1', [room]); // Remove game from DB
+                    io.to(room).emit('game-ended', 'The game has been ended because no players remain.');
+                } else {
+                    // Otherwise, update game state and notify remaining players
+                    io.to(room).emit('gameStateUpdated', { players: remainingPlayers });
+                    io.to(room).emit('user_left', `${socket.id} left the room`);
+                }
+            } catch (error) {
+                console.error('Error when a user leaves the room:', error);
+            }
+        });
 
         // Handle removeRoom event
         socket.on("removeRoom", async (roomToRemove) => {
@@ -360,101 +363,101 @@ socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific s
 
         // Handle playerTurn event (game logic)
         io.on('connection', (socket) => {
-            
-socket.on('playerTurn', async (data) => {
-    const { room, playerId, rollResults } = data;
 
-    try {
-        // Update the game state with the new roll results or player move
-        const updatedGameState = await updateGameState(room, playerId, rollResults);
+            socket.on('playerTurn', async (data) => {
+                const { room, playerId, rollResults } = data;
 
-        // Emit updated game state to all players in the room
-        io.to(room).emit('gameStateUpdated', updatedGameState);
+                try {
+                    // Update the game state with the new roll results or player move
+                    const updatedGameState = await updateGameState(room, playerId, rollResults);
 
-        // Handle turn for AI if the current player is AI
-        const nextPlayer = getNextPlayer(updatedGameState, playerId);
+                    // Emit updated game state to all players in the room
+                    io.to(room).emit('gameStateUpdated', updatedGameState);
 
-        // If the next player is AI, simulate their turn automatically
-        if (nextPlayer.is_ai) {
-            // Here you can define AI behavior (e.g., random dice roll)
-            const aiRollResults = ['L', 'R', 'C']; // Example AI roll results, you can randomize it or add logic
-            console.log(`AI Player ${nextPlayer.id} is taking their turn with results: ${aiRollResults}`);
+                    // Handle turn for AI if the current player is AI
+                    const nextPlayer = getNextPlayer(updatedGameState, playerId);
 
-            // Process AI's turn by calling the same game logic used for player turns
-            const aiUpdatedGameState = await updateGameState(room, nextPlayer.id, aiRollResults);
+                    // If the next player is AI, simulate their turn automatically
+                    if (nextPlayer.is_ai) {
+                        // Here you can define AI behavior (e.g., random dice roll)
+                        const aiRollResults = ['L', 'R', 'C']; // Example AI roll results, you can randomize it or add logic
+                        console.log(`AI Player ${nextPlayer.id} is taking their turn with results: ${aiRollResults}`);
 
-            // Emit updated game state to all players
-            io.to(room).emit('gameStateUpdated', aiUpdatedGameState);
+                        // Process AI's turn by calling the same game logic used for player turns
+                        const aiUpdatedGameState = await updateGameState(room, nextPlayer.id, aiRollResults);
 
-            // Notify the next player to take their turn
-            const aiNextPlayer = getNextPlayer(aiUpdatedGameState, nextPlayer.id);
-            const aiNextTurnMessage = `It's now ${aiNextPlayer.name}'s turn!`;
-            io.to(room).emit('current-turn', aiNextTurnMessage);
-        } else {
-            // If the next player is human, just notify the next turn message
-            const nextTurnMessage = `It's now ${nextPlayer.name}'s turn!`;
-            io.to(room).emit('current-turn', nextTurnMessage);
-        }
+                        // Emit updated game state to all players
+                        io.to(room).emit('gameStateUpdated', aiUpdatedGameState);
 
-    } catch (error) {
-        console.error('Error processing player turn:', error);
-    }
-});
+                        // Notify the next player to take their turn
+                        const aiNextPlayer = getNextPlayer(aiUpdatedGameState, nextPlayer.id);
+                        const aiNextTurnMessage = `It's now ${aiNextPlayer.name}'s turn!`;
+                        io.to(room).emit('current-turn', aiNextTurnMessage);
+                    } else {
+                        // If the next player is human, just notify the next turn message
+                        const nextTurnMessage = `It's now ${nextPlayer.name}'s turn!`;
+                        io.to(room).emit('current-turn', nextTurnMessage);
+                    }
 
-// Handle next turn (move the game forward and update turn table)
-socket.on('next-turn', async ({ room }) => {
-    // Get the current player turn from player_turns table
-    const currentTurn = await client.query('SELECT * FROM player_turns WHERE room_id = $1 ORDER BY turn_order LIMIT 1', [room]);
+                } catch (error) {
+                    console.error('Error processing player turn:', error);
+                }
+            });
 
-    // Get the next player (you can cycle through the players or use a game logic)
-    const nextTurnOrder = currentTurn.rows[0].turn_order + 1;
-    const nextPlayer = await client.query(
-        'SELECT * FROM players WHERE room_id = $1 AND turn_order = $2',
-        [room, nextTurnOrder]
-    );
+            // Handle next turn (move the game forward and update turn table)
+            socket.on('next-turn', async ({ room }) => {
+                // Get the current player turn from player_turns table
+                const currentTurn = await client.query('SELECT * FROM player_turns WHERE game_id = $1 ORDER BY turn_order LIMIT 1', [room]);
 
-    if (nextPlayer.rows.length > 0) {
-        const nextPlayerId = nextPlayer.rows[0].id;
-        // Update player_turns table to reflect the next player's turn
-        await client.query(
-            'UPDATE player_turns SET is_active = false WHERE room_id = $1 AND player_id = $2',
-            [room, currentTurn.rows[0].player_id]
-        );
-        await client.query(
-            'UPDATE player_turns SET is_active = true WHERE room_id = $1 AND player_id = $2',
-            [room, nextPlayerId]
-        );
+                // Get the next player (you can cycle through the players or use a game logic)
+                const nextTurnOrder = currentTurn.rows[0].turn_order + 1;
+                const nextPlayer = await client.query(
+                    'SELECT * FROM players WHERE game_id = $1 AND turn_order = $2',
+                    [room, nextTurnOrder]
+                );
 
-        // Emit the updated turn information
-        const updatedTurn = await client.query('SELECT * FROM player_turns WHERE room_id = $1', [room]);
-        socket.emit('gameStateUpdated', updatedTurn.rows);
-        socket.broadcast.to(room).emit('turnChanged', nextPlayer.rows[0].name);
-    }
-});
+                if (nextPlayer.rows.length > 0) {
+                    const nextPlayerId = nextPlayer.rows[0].id;
+                    // Update player_turns table to reflect the next player's turn
+                    await client.query(
+                        'UPDATE player_turns SET is_active = false WHERE game_id = $1 AND player_id = $2',
+                        [room, currentTurn.rows[0].player_id]
+                    );
+                    await client.query(
+                        'UPDATE player_turns SET is_active = true WHERE game_id = $1 AND player_id = $2',
+                        [room, nextPlayerId]
+                    );
 
-        //         socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
-        //     const game = await createOrGetGame(room);
-        //     if (!game) return;
+                    // Emit the updated turn information
+                    const updatedTurn = await client.query('SELECT * FROM player_turns WHERE game_id = $1', [room]);
+                    socket.emit('gameStateUpdated', updatedTurn.rows);
+                    socket.broadcast.to(room).emit('turnChanged', nextPlayer.rows[0].name);
+                }
+            });
 
-        //     // Process the player's turn and update game state
-        //     const updatedPlayers = await processTurn(game.id);
+            //         socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
+            //     const game = await createOrGetGame(room);
+            //     if (!game) return;
 
-        //     // Broadcast updated game state to all players
-        //     io.to(room).emit('gameStateUpdated', updatedPlayers);
-        // });
-        //     socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
-        //         const game = await createOrGetGame(room);
-        //         if (!game) return;
+            //     // Process the player's turn and update game state
+            //     const updatedPlayers = await processTurn(game.id);
 
-        //         const updatedPlayers = await processTurn(game.id, playerId, rollResults);
-        //         const winner = checkForWinner(updatedPlayers);
-        //         if (winner) {
-        //             await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
-        //             console.log("Winner is: ", winner);
-        //         }
+            //     // Broadcast updated game state to all players
+            //     io.to(room).emit('gameStateUpdated', updatedPlayers);
+            // });
+            //     socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
+            //         const game = await createOrGetGame(room);
+            //         if (!game) return;
 
-        //         await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
-        //         io.to(room).emit('gameStateUpdated', updatedPlayers);
+            //         const updatedPlayers = await processTurn(game.id, playerId, rollResults);
+            //         const winner = checkForWinner(updatedPlayers);
+            //         if (winner) {
+            //             await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
+            //             console.log("Winner is: ", winner);
+            //         }
+
+            //         await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
+            //         io.to(room).emit('gameStateUpdated', updatedPlayers);
         });
     });
 
