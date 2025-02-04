@@ -153,7 +153,7 @@ app.prepare().then(() => {
         },
     });
 
-    io.on('connection', (socket) => {
+    
 
         io.on('connection', (socket) => {
             console.log('Socket connected');
