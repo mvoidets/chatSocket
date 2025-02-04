@@ -32,6 +32,7 @@ const getRoomsFromDB = async () => {
     }
 };
 
+
 // Handle room creation
 const createRoomInDB = async (newRoom) => {
     try {
