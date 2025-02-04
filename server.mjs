@@ -219,13 +219,13 @@ app.prepare().then(() => {
             credentials: true,
         },
     });
-    socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
+ 
 
     io.on('connection', (socket) => {
         console.log('Socket connected');
         console.log(`A player has connected`);
         socket.removeAllListeners('playerTurn');
-        
+       // socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
         // Handle get-available-rooms event
         socket.on('get-available-rooms', async () => {
             const rooms = await getRoomsFromDB();
