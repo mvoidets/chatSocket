@@ -339,7 +339,7 @@ app.prepare().then(() => {
         });
 
         // Handle playerTurn event (game logic)
-        io.on('connection', (socket) => {
+        //io.on('connection', (socket) => {
 
             socket.on('playerTurn', async (data) => {
                 const { room, playerId, rollResults } = data;
