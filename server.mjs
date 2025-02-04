@@ -71,67 +71,91 @@ export async function getMessagesFromDB(roomName) {
 // Game-related functions (processing player turns, checking for winners, etc.)
 const createOrGetGame = async (room) => {
     try {
-        // Reconnect if the client is not connected
+        // Reconnect to DB if not already connected
         if (!client._connected) {
             console.log('Reconnecting to database');
             await client.connect();
         }
 
-        // Check if the room already exists in the rooms table
-        const roomRes = await client.query('SELECT * FROM rooms WHERE room_name = $1', [room]);
+        // Check if the room exists in the rooms table
+        const roomRes = await client.query('SELECT * FROM rooms WHERE name = $1', [room]);
         
         if (roomRes.rows.length === 0) {
-            // Room doesn't exist, so insert it first
-            await client.query('INSERT INTO rooms (room_name) VALUES ($1)', [room]);
+            // Room doesn't exist, insert the room into the rooms table
+            await client.query('INSERT INTO rooms (name) VALUES ($1)', [room]);
             console.log(`Room ${room} created in the rooms table.`);
         }
 
-        // Now, create or fetch the game from the games table
+        // Check if the game already exists in the games table for this room
         const gameRes = await client.query('SELECT * FROM games WHERE room_name = $1', [room]);
 
-        if (gameRes.rows.length > 0) return gameRes.rows[0];
+        if (gameRes.rows.length > 0) {
+            // Game already exists for this room, return the game
+            return gameRes.rows[0];
+        }
 
-        // If no game exists, create a new game
-        const newGameRes = await client.query('INSERT INTO games (room_name, current_turn) VALUES ($1, 1) RETURNING *', [room]);
+        // If no game exists, create a new game and insert into the games table
+        const newGameRes = await client.query(
+            'INSERT INTO games (room_name, current_turn) VALUES ($1, 1) RETURNING *',
+            [room]
+        );
+
+        // Fetch the new game to return
         return newGameRes.rows[0];
 
     } catch (error) {
-        console.error('Error creating game:', error);
-        return null;  // Return null or a meaningful message if the game creation fails
+        console.error('Error creating or getting game:', error);
+        return null;
     }
 };
 
 
-// Process player turns (game logic for L, R, C)
+//add player to game
+const addPlayerToGame = async (gameId, playerName, isAI = false) => {
+    try {
+        const playerRes = await client.query(
+            'INSERT INTO players (game_id, player_name, is_ai, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+            [gameId, playerName, isAI]
+        );
+
+        return playerRes.rows[0];
+    } catch (error) {
+        console.error('Error adding player:', error);
+        return null;
+    }
+};
+
 const processTurn = async (gameId) => {
-    // Get all players in the game
+    // Get the players and current turn
     const playersRes = await client.query('SELECT * FROM players WHERE game_id = $1', [gameId]);
     const players = playersRes.rows;
 
-    // Get the current turn from the game
     const currentTurnRes = await client.query('SELECT current_turn FROM games WHERE id = $1', [gameId]);
     const currentTurn = currentTurnRes.rows[0].current_turn;
 
-    // Determine which player’s turn it is based on the index
     const currentPlayer = players[currentTurn % players.length];
 
-    // Notify everyone in the game of whose turn it is
-    io.to(gameId).emit('current-turn', `${currentPlayer.name}'s turn`);
+    // Call processPlayerTurn to handle player-specific turn logic
+    await processPlayerTurn(gameId, currentPlayer.player_id, currentPlayer.dice_results);
 
-    // Update the turn in the database for the next round
+    // Update current_turn and broadcast to all players
     await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE id = $1', [gameId]);
+    io.to(gameId).emit('gameStateUpdated', players);
 
-    // Check if there are fewer than 6 players, and add AI players if necessary
-    const aiNeeded = 6 - players.length;
-    if (aiNeeded > 0) {
-        for (let i = 0; i < aiNeeded; i++) {
-            const aiName = `AI-${i + 1}`;
-            await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3)', [gameId, aiName, 3]);
-            console.log(`AI player added: ${aiName}`);
-        }
-    }
-
+    // Return players
     return players;
+};
+
+const processPlayerTurn = async (gameId, playerId, rollResults) => {
+    // Process player-specific turn (chips, dice results, etc.)
+    // Update player chips and roll results here
+    const chipsBeforeTurn = 3;  // Placeholder, get from DB
+    const chipsAfterTurn = chipsBeforeTurn - calculateChipsAfterTurn(rollResults);
+
+    await client.query(
+        'UPDATE players SET chips = $1, dice_results = $2 WHERE player_id = $3',
+        [chipsAfterTurn, rollResults, playerId]
+    );
 };
 
 
