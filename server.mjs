@@ -290,7 +290,7 @@ app.prepare().then(() => {
     io.on('connection', (socket) => {
         console.log('Socket connected');
         console.log(`A player has connected`);
-        socket.removeAllListeners('playerTurn');
+       // socket.removeAllListeners('playerTurn');
         // socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
         // Handle get-available-rooms event
         // socket.on('get-available-rooms', async () => {
@@ -442,7 +442,7 @@ app.prepare().then(() => {
     // Handle playerTurn event (game logic)
     //io.on('connection', (socket) => {
 
-    socket.on('playerTurn', async (data) => {
+     socket.on('playerTurn', async (data) => {
         const { room, playerId, rollResults } = data;
 
         try {
