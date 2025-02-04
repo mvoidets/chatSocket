@@ -262,7 +262,7 @@ app.prepare().then(() => {
     //         await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
     //         io.to(room).emit('gameStateUpdated', updatedPlayers);
     //     });
-    // });
+     });
 
     httpServer.listen(port, '0.0.0.0', () => {
         console.log(`Server listening on http://${hostname}:${port}`);
