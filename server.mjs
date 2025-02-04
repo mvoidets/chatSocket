@@ -43,6 +43,30 @@ const createRoomInDB = async (newRoom) => {
     }
 };
 
+// Save message to the database
+const saveMessageToDatabase = async (room, message, sender) => {
+    try {
+        const res = await client.query('INSERT INTO messages (room_name, message, sender) VALUES ($1, $2, $3) RETURNING *', [room, message, sender]);
+        console.log('Message saved to DB:', res.rows[0]);
+    } catch (error) {
+        console.error('Error saving message to DB:', error);
+    }
+};
+
+// Get message history
+export async function getMessagesFromDB(roomName) {
+    try {
+        const res = await client.query(
+            'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
+            [roomName]
+        );
+        return res.rows; // Return messages ordered by creation time
+    } catch (error) {
+        console.error('Error fetching messages from DB:', error);
+        return []; // Return empty array if there's an error
+    }
+}
+
 // Game-related functions (processing player turns, checking for winners, etc.)
 const createOrGetGame = async (room) => {
     try {
@@ -62,25 +86,24 @@ const processTurn = async (gameId, playerId, rollResults) => {
     const players = playersRes.rows;
     const player = players.find(p => p.player_id === playerId);
 
+    // Process each dice roll result (L, R, C)
     rollResults.forEach((roll) => {
         if (roll === 'L') {
             const leftPlayer = getLeftPlayer(players, playerId);
-            console.log("Left player is:", leftPlayer);
             leftPlayer.chips++;
             player.chips--;
         } else if (roll === 'R') {
             const rightPlayer = getRightPlayer(players, playerId);
-            console.log("Right player is: ", rightPlayer);
             rightPlayer.chips++;
             player.chips--;
         } else if (roll === 'C') {
-            const centerPlayer = players.find(p => p.player_id === 0);
-            console.log("Center player is: ", centerPlayer);
+            const centerPlayer = players.find(p => p.player_id === 0); // Assuming center player has player_id 0
             centerPlayer.chips++;
             player.chips--;
         }
     });
 
+    // Save updated player data
     for (const p of players) {
         await savePlayerTurn(gameId, p.player_id, p.chips, p.dice_result);
     }
@@ -103,12 +126,6 @@ const checkForWinner = (players) => {
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
 };
 
-// Simulate a dice roll for AI players
-const simulateDiceRoll = () => {
-    const outcomes = ['L', 'R', 'C', '.', '.', '.'];
-    return outcomes[Math.floor(Math.random() * outcomes.length)];
-};
-
 // Main server initialization
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -126,22 +143,24 @@ app.prepare().then(() => {
 
     io.on('connection', (socket) => {
         console.log('Socket connected');
-
+        console.log('A player connected');
+        
         // Handle get-available-rooms event
         socket.on('get-available-rooms', async () => {
             const rooms = await getRoomsFromDB();
             console.log('available rooms:', rooms);
-            io.emit('availableRooms', rooms);
+            io.emit('availableRooms', rooms);  
         });
 
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
-            if (!newRoom) return;
+            if (!newRoom) return; // Don't proceed if no room name
 
             try {
                 const createdRoom = await createRoomInDB(newRoom);
+                console.log(`new room: ${newRoom} has been created`);
                 if (createdRoom) {
-                    io.emit('availableRooms', await getRoomsFromDB());
+                    io.emit('availableRooms', await getRoomsFromDB());  // Emit updated rooms list
                 } else {
                     console.log('Room already exists');
                 }
@@ -152,24 +171,44 @@ app.prepare().then(() => {
 
         // Handle join-room event
         socket.on('join-room', async ({ room, chatName }) => {
-            console.log(`User ${chatName} joining room: ${room}`);
+            console.log(`User with chat name ${chatName} joining room: ${room}`);
             socket.join(room);
 
-            // Handle adding AI if needed
-            const game = await createOrGetGame(room);
-            if (game) {
-                const playersRes = await client.query('SELECT * FROM players WHERE game_id = $1', [game.id]);
-                const players = playersRes.rows;
-
-                // If there are fewer than 6 players, add AI
-                while (players.length < 6) {
-                    const aiPlayerId = `AI-${players.length + 1}`;
-                    players.push({ player_id: aiPlayerId, chips: 3, is_ai: true });
-                }
-
-                // Broadcast game state to room
-                io.to(room).emit('gameStateUpdated', players);
+            // Fetch message history for the room
+            try {
+                const messages = await getMessagesFromDB(room);
+                socket.emit('messageHistory', messages); // Send message history to the user
+            } catch (error) {
+                console.error('Error fetching message history:', error);
             }
+
+            // Broadcast that the user joined the room
+            io.to(room).emit('user_joined', `${chatName} joined the room`);
+        });
+
+        // Handle leave-room event
+        socket.on('leave-room', (room) => {
+            console.log(`User left room: ${room}`);
+            socket.leave(room);
+            socket.to(room).emit('user_left', `${socket.id} left the room`);
+        });
+
+        // Handle removeRoom event
+        socket.on('removeRoom', async (roomToRemove) => {
+            console.log(`Removing room: ${roomToRemove}`);
+            try {
+                await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
+                io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
+            } catch (error) {
+                console.error('Error deleting room:', error);
+            }
+        });
+
+        // Handle message event (sending messages in rooms)
+        socket.on('message', async ({ room, message, sender }) => {
+            console.log(`Message from ${sender}: ${message}`);
+            await saveMessageToDatabase(room, message, sender);
+            io.to(room).emit('message', { sender, message });
         });
 
         // Handle playerTurn event (game logic)
@@ -179,19 +218,12 @@ app.prepare().then(() => {
 
             const updatedPlayers = await processTurn(game.id, playerId, rollResults);
             const winner = checkForWinner(updatedPlayers);
-
             if (winner) {
                 await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
                 console.log("Winner is: ", winner);
             }
 
-            // Handle AI turn if it's their turn
-            if (updatedPlayers[game.current_turn % updatedPlayers.length].is_ai) {
-                const aiPlayer = updatedPlayers[game.current_turn % updatedPlayers.length];
-                const aiRoll = simulateDiceRoll();
-                await processTurn(game.id, aiPlayer.player_id, aiRoll.split(', '));
-            }
-
+            await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
             io.to(room).emit('gameStateUpdated', updatedPlayers);
         });
     });
