@@ -194,15 +194,24 @@ app.prepare().then(() => {
         });
 
         // Handle removeRoom event
-        socket.on('removeRoom', async (roomToRemove) => {
-            console.log(`Removing room: ${roomToRemove}`);
-            try {
-                await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
-                io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
-            } catch (error) {
-                console.error('Error deleting room:', error);
-            }
-        });
+   // Handle removeRoom event
+ socket.on("removeRoom", async (roomToRemove) => {
+    console.log(`Removing room: ${roomToRemove}`);
+
+    try {
+        // Delete messages from the database for the specified room
+        await client.query('DELETE FROM messages WHERE room_name = $1', [roomToRemove]);
+        
+        // Delete the room from the database
+        await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
+        
+        // Emit updated room list to clients
+        io.emit("availableRooms", await getRoomsFromDB()); // Emit updated room list
+    } catch (error) {
+        console.error("Error deleting room and messages:", error);
+    }
+});
+
 
         // Handle message event (sending messages in rooms)
         socket.on('message', async ({ room, message, sender }) => {
