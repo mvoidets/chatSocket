@@ -1,7 +1,4 @@
-//working from branch updategamestate/updated 
-
-
-import { createServer } from 'node:http';
+\import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
 import pkg from 'pg';
@@ -138,7 +135,7 @@ const updateGameState = async (room, playerId, rollResults) => {
         const players = playersRes.rows;
 
         const currentPlayer = players.find(player => player.id === playerId);
-        console.log('Current player is ${playernam}`);
+        console.log(`Current player is ${playernam}`);
         // Update game state logic
         if (rollResults) {
             currentPlayer.chips += rollResults; // Modify according to your game rules
@@ -290,7 +287,7 @@ app.prepare().then(() => {
     io.on('connection', (socket) => {
         console.log('Socket connected');
         console.log(`A player has connected`);
-       // socket.removeAllListeners('playerTurn');
+        // socket.removeAllListeners('playerTurn');
         // socket.setMaxListeners(20); // Set the limit to 20 listeners for this specific socket
         // Handle get-available-rooms event
         // socket.on('get-available-rooms', async () => {
@@ -357,8 +354,8 @@ app.prepare().then(() => {
                 // If the player doesn't exist, add them to the players table
                 if (checkPlayer.rows.length === 0) {
                     // Add the player to the database
-                const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
-                console.log(`Player added: ${userName}`);
+                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
+                    console.log(`Player added: ${userName}`);
                 }
                 // Insert player’s turn in the players_turn table (only if it’s the first player)
                 const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
@@ -438,30 +435,30 @@ app.prepare().then(() => {
                 socket.emit('error', 'An error occurred while processing your turn.');
             }
         });
-   
-    // Handle playerTurn event (game logic)
-    //io.on('connection', (socket) => {
 
-     socket.on('playerTurn', async (data) => {
-        const { room, playerId, rollResults } = data;
+        // Handle playerTurn event (game logic)
+        //io.on('connection', (socket) => {
 
-        try {
-            // Update the game state with the new roll results or player move
-            const updatedGameState = await updateGameState(room, playerId, rollResults);
+        socket.on('playerTurn', async (data) => {
+            const { room, playerId, rollResults } = data;
 
-            // Emit updated game state to all players in the room
-            io.to(room).emit('gameStateUpdated', updatedGameState);
-            // Call updatePlayerTurn to move to the next player
-            await updatePlayerTurn(room, playerId);
-            // Notify the next player to take their turn
-            const nextPlayer = getNextPlayer(updatedGameState, playerId);
-            const nextTurnMessage = `It's now ${nextPlayer.name}'s turn!`;
-            io.to(room).emit('current-turn', nextTurnMessage);
-        } catch (error) {
-            console.error('Error processing player turn:', error);
-        }
+            try {
+                // Update the game state with the new roll results or player move
+                const updatedGameState = await updateGameState(room, playerId, rollResults);
+
+                // Emit updated game state to all players in the room
+                io.to(room).emit('gameStateUpdated', updatedGameState);
+                // Call updatePlayerTurn to move to the next player
+                await updatePlayerTurn(room, playerId);
+                // Notify the next player to take their turn
+                const nextPlayer = getNextPlayer(updatedGameState, playerId);
+                const nextTurnMessage = `It's now ${nextPlayer.name}'s turn!`;
+                io.to(room).emit('current-turn', nextTurnMessage);
+            } catch (error) {
+                console.error('Error processing player turn:', error);
+            }
+        });
     });
- });
 
 
 
