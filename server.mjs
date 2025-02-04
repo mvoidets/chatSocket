@@ -287,9 +287,9 @@ app.prepare().then(() => {
                 }
 
                 // Add player to the database if they don't already exist
-                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playerName = $2', [game.id, chatName]);
+                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, chatName]);
                 if (checkPlayer.rows.length === 0) {
-                    const res = await client.query('INSERT INTO players (game_id, playerName, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
+                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
                     console.log(`Player added: ${chatName}`);
                 }
 
