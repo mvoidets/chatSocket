@@ -71,19 +71,36 @@ export async function getMessagesFromDB(roomName) {
 // Game-related functions (processing player turns, checking for winners, etc.)
 const createOrGetGame = async (room) => {
     try {
-             if (!client._connected) {
+        // Reconnect if the client is not connected
+        if (!client._connected) {
             console.log('Reconnecting to database');
             await client.connect();
-             }
-        const res = await client.query('SELECT * FROM games WHERE room_name = $1', [room]);
-        if (res.rows.length > 0) return res.rows[0];
+        }
+
+        // Check if the room already exists in the rooms table
+        const roomRes = await client.query('SELECT * FROM rooms WHERE room_name = $1', [room]);
+        
+        if (roomRes.rows.length === 0) {
+            // Room doesn't exist, so insert it first
+            await client.query('INSERT INTO rooms (room_name) VALUES ($1)', [room]);
+            console.log(`Room ${room} created in the rooms table.`);
+        }
+
+        // Now, create or fetch the game from the games table
+        const gameRes = await client.query('SELECT * FROM games WHERE room_name = $1', [room]);
+
+        if (gameRes.rows.length > 0) return gameRes.rows[0];
+
+        // If no game exists, create a new game
         const newGameRes = await client.query('INSERT INTO games (room_name, current_turn) VALUES ($1, 1) RETURNING *', [room]);
         return newGameRes.rows[0];
+
     } catch (error) {
         console.error('Error creating game:', error);
-        return null;
+        return null;  // Return null or a meaningful message if the game creation fails
     }
 };
+
 
 // Process player turns (game logic for L, R, C)
 const processTurn = async (gameId) => {
