@@ -438,7 +438,7 @@ app.prepare().then(() => {
                 socket.emit('error', 'An error occurred while processing your turn.');
             }
         });
-    });
+   
     // Handle playerTurn event (game logic)
     //io.on('connection', (socket) => {
 
@@ -461,7 +461,7 @@ app.prepare().then(() => {
             console.error('Error processing player turn:', error);
         }
     });
-
+ });
 
 
 
