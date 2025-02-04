@@ -21,6 +21,7 @@ client.connect().then(() => {
 
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
+    console.log("Rooms from DB:", getRoomsFromDB);
     try {
         const res = await client.query('SELECT name FROM rooms');
         return res.rows.map(row => row.name);
