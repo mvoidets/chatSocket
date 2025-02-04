@@ -143,7 +143,7 @@ app.prepare().then(() => {
 
     io.on('connection', (socket) => {
         console.log('Socket connected');
-        console.log('A player connected');
+        console.log(` ${username} has connected`);
         
         // Handle get-available-rooms event
         socket.on('get-available-rooms', async () => {
