@@ -89,14 +89,17 @@ const processTurn = async (gameId, playerId, rollResults) => {
     rollResults.forEach((roll) => {
         if (roll === 'L') {
             const leftPlayer = getLeftPlayer(players, playerId);
+            console.log("Left player is:", leftPlayer);
             leftPlayer.chips++;
             player.chips--;
         } else if (roll === 'R') {
             const rightPlayer = getRightPlayer(players, playerId);
+            console.log("Right player is: ", rightPlayer);
             rightPlayer.chips++;
             player.chips--;
         } else if (roll === 'C') {
             const centerPlayer = players.find(p => p.player_id === 0);
+            console.log("Center player is: " , centerPlayer);
             centerPlayer.chips++;
             player.chips--;
         }
@@ -217,6 +220,7 @@ app.prepare().then(() => {
             const winner = checkForWinner(updatedPlayers);
             if (winner) {
                 await client.query('UPDATE games SET winner = $1 WHERE room_name = $2', [winner, room]);
+                console.log("WInner is: ", winner);
             }
 
             await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
