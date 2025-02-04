@@ -71,6 +71,10 @@ export async function getMessagesFromDB(roomName) {
 // Game-related functions (processing player turns, checking for winners, etc.)
 const createOrGetGame = async (room) => {
     try {
+             if (!client._connected) {
+            console.log('Reconnecting to database');
+            await client.connect();
+             }
         const res = await client.query('SELECT * FROM games WHERE room_name = $1', [room]);
         if (res.rows.length > 0) return res.rows[0];
         const newGameRes = await client.query('INSERT INTO games (room_name, current_turn) VALUES ($1, 1) RETURNING *', [room]);
