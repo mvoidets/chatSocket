@@ -156,6 +156,7 @@ app.prepare().then(() => {
     io.on('connection', (socket) => {
 
         io.on('connection', (socket) => {
+            console.log('Socket connected');
             socket.on('get-available-rooms', async () => {
                 const rooms = await getRoomsFromDB();
                 console.log('available rooms:', rooms);
