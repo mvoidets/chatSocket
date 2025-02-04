@@ -196,6 +196,13 @@ const getRightPlayer = (players, playerId) => {
     return players[(index + 1) % players.length];
 };
 
+// Add player to the database if they don't already exist
+const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND name = $2', [game.id, chatName]);
+if (checkPlayer.rows.length === 0) {
+    const res = await client.query('INSERT INTO players (game_id, name, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, chatName, 3]); // Initial chips
+    console.log(`Player added: ${chatName}`);
+}
+
 const checkForWinner = (players) => {
     const activePlayers = players.filter(player => player.chips > 0);
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
