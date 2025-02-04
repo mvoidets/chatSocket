@@ -246,7 +246,17 @@ const updatePlayerTurn = async (gameId, currentPlayerId, rollResults) => {
         const nextPlayer = nextPlayerRes.rows[0];
 
         // Remove the current player’s turn (complete their turn)
-        await clien
+        await client.query('DELETE FROM players_turn WHERE game_id = $1 AND player_id = $2', [gameId, currentPlayerId]);
+
+        // Insert the next player's turn into the players_turn table
+        await client.query(
+            'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, $3)',
+            [gameId, nextPlayer.id, nextTurnNumber]
+        );
+    } catch (error) {
+        console.error('Error updating player turn:', error);
+    }
+};
 
 // Main server initialization
 const app = next({ dev, hostname, port });
