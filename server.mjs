@@ -177,17 +177,7 @@ const processTurn = async (gameId) => {
     return players;
 };
 
-const processPlayerTurn = async (gameId, playerId, chips, rollResults) => {
 
-    // Update player chips and roll results here
-    const chipsBeforeTurn = 3;  // Placeholder, get from DB
-    const chipsAfterTurn = chipsBeforeTurn - calculateChipsAfterTurn(rollResults);
-
-    await client.query(
-        'UPDATE players SET chips = $1, dice_results = $2 WHERE player_id = $3',
-        [chipsAfterTurn, rollResults, playerId]
-    );
-};
 
 
 const getLeftPlayer = (players, playerId) => {
@@ -204,6 +194,59 @@ const checkForWinner = (players) => {
     const activePlayers = players.filter(player => player.chips > 0);
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
 };
+
+const validatePlayerTurn = async (gameId, playerId) => {
+    const currentTurnRes = await client.query(
+        'SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1',
+        [gameId]
+    );
+
+    const currentTurn = currentTurnRes.rows[0];
+    if (currentTurn.player_id !== playerId) {
+        throw new Error("It's not your turn!");
+    }
+};
+const processPlayerTurn = async (gameId, playerId, chips, rollResults) => {
+    // Get the current chips before the turn
+    const result = await client.query('SELECT chips FROM players WHERE game_id = $1 AND player_id = $2', [gameId, playerId]);
+    const chipsBeforeTurn = result.rows[0]?.chips || 3; // Default to 3 if not found
+
+    // Calculate the chips after the turn
+    const chipsAfterTurn = chipsBeforeTurn - calculateChipsAfterTurn(rollResults);
+
+    // Update player’s chips and roll results in the database
+    await client.query(
+        'UPDATE players SET chips = $1, dice_results = $2 WHERE game_id = $3 AND player_id = $4',
+        [chipsAfterTurn, rollResults, gameId, playerId]
+    );
+};
+
+// Now updatePlayerTurn with chips processing logic
+const updatePlayerTurn = async (gameId, currentPlayerId, rollResults) => {
+    try {
+        // Process the current player's turn (update chips and roll results)
+        const result = await client.query('SELECT chips FROM players WHERE game_id = $1 AND player_id = $2', [gameId, currentPlayerId]);
+        const chips = result.rows[0]?.chips; // Get current player's chips before processing
+        
+        await processPlayerTurn(gameId, currentPlayerId, chips, rollResults);  // Process the turn (chips and roll results)
+
+        // Get the current player's turn number
+        const currentTurnRes = await client.query(
+            'SELECT * FROM players_turn WHERE game_id = $1 AND player_id = $2 ORDER BY turn_number DESC LIMIT 1',
+            [gameId, currentPlayerId]
+        );
+        const currentTurn = currentTurnRes.rows[0];
+        const nextTurnNumber = currentTurn.turn_number + 1;
+
+        // Get the next player (you can define this logic according to your game rules)
+        const nextPlayerRes = await client.query(
+            'SELECT * FROM players WHERE game_id = $1 ORDER BY id ASC LIMIT 1 OFFSET $2',
+            [gameId, nextTurnNumber] // Find the next player based on turn_number
+        );
+        const nextPlayer = nextPlayerRes.rows[0];
+
+        // Remove the current player’s turn (complete their turn)
+        await clien
 
 // Main server initialization
 const app = next({ dev, hostname, port });
@@ -288,14 +331,23 @@ app.prepare().then(() => {
 
         // Check if the player already exists in the players table for this game
         const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
-
         // If the player doesn't exist, add them to the players table
         if (checkPlayer.rows.length === 0) {
             // Add the player to the database
             const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
             console.log(`Player added: ${userName}`);
         }
+  // Insert player’s turn in the players_turn table (only if it’s the first player)
+        const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
+        const currentTurn = await client.query('SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number ASC LIMIT 1', [game.id]);
 
+        if (currentTurn.rows.length === 0) {
+            // If no player turn records exist, make the current player the first player
+            await client.query(
+                'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, 1)',
+                [game.id, playerId]
+            );
+        }
         // Fetch the message history for the room
         const messages = await getMessagesFromDB(room);
         socket.emit('messageHistory', messages); // Send message history to the user
@@ -353,7 +405,8 @@ app.prepare().then(() => {
 
                     // Emit updated game state to all players in the room
                     io.to(room).emit('gameStateUpdated', updatedGameState);
-
+		// Call updatePlayerTurn to move to the next player
+    		    await updatePlayerTurn(room, playerId);
                     // Notify the next player to take their turn
                     const nextPlayer = getNextPlayer(updatedGameState, playerId);
                     const nextTurnMessage = `It's now ${nextPlayer.name}'s turn!`;
