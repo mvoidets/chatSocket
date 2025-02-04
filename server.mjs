@@ -19,7 +19,6 @@ client.connect().then(() => {
     console.error('Failed to connect to PostgreSQL:', error);
 });
 
-
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
     try {
@@ -28,15 +27,6 @@ const getRoomsFromDB = async () => {
     } catch (error) {
         console.error('Error fetching rooms from DB:', error);
         return [];
-    }
-};
-const handleRemoveRoom = () => {
-    if (room) {
-        socket.emit("removeRoom", room);  // Emit deleteRoom event to the server
-        setRoom("");  // Clear the room state after deletion
-        setJoined(false);  // Reset joined state
-    } else {
-        console.log("Please select a room to delete");
     }
 };
 
@@ -53,8 +43,6 @@ const createRoomInDB = async (newRoom) => {
     }
 };
 
-
-
 // Save message to the database
 const saveMessageToDatabase = async (room, message, sender) => {
     try {
@@ -65,8 +53,7 @@ const saveMessageToDatabase = async (room, message, sender) => {
     }
 };
 
-// get history or msgs
-
+// Get message history
 export async function getMessagesFromDB(roomName) {
     try {
         const res = await client.query(
@@ -137,7 +124,6 @@ const checkForWinner = (players) => {
     return activePlayers.length === 1 ? activePlayers[0].player_id : null;
 };
 
-
 // Main server initialization
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -153,24 +139,23 @@ app.prepare().then(() => {
         },
     });
 
-    
+    io.on('connection', (socket) => {
+        console.log('Socket connected');
 
-        io.on('connection', (socket) => {
-            console.log('Socket connected');
-            socket.on('get-available-rooms', async () => {
-                const rooms = await getRoomsFromDB();
-                console.log('available rooms:', rooms);
-                io.emit('availableRooms', rooms);  
-            });
+        // Handle get-available-rooms event
+        socket.on('get-available-rooms', async () => {
+            const rooms = await getRoomsFromDB();
+            console.log('available rooms:', rooms);
+            io.emit('availableRooms', rooms);  
         });
-       
+
         // Handle room creation
-        socket.on("createRoom", async (newRoom) => {
+        socket.on('createRoom', async (newRoom) => {
             if (!newRoom) return; // Don't proceed if no room name
 
             try {
                 const createdRoom = await createRoomInDB(newRoom);
-                console.log(`new rom: ${newRoom} has been created`);
+                console.log(`new room: ${newRoom} has been created`);
                 if (createdRoom) {
                     io.emit('availableRooms', await getRoomsFromDB());  // Emit updated rooms list
                 } else {
@@ -181,60 +166,50 @@ app.prepare().then(() => {
             }
         });
 
+        // Handle join-room event
+        socket.on('join-room', async ({ room, chatName }) => {
+            console.log(`User with chat name ${chatName} joining room: ${room}`);
+            socket.join(room);
 
-       
-        // Handle join-room event (accepts chat name)
-        // socket.on("join-room", async ({ room, chatName }) => {
-        //     console.log(`User with chat name ${chatName} joining room: ${room}`);
-        //     socket.join(room);
-        //     const messageHistory = await getMessagesFromDB(room);
-        //     socket.emit("messageHistory", messageHistory);  // Send message history to the user
-        //     io.to(room).emit("user_joined", `${chatName} joined the room`);
-        // });
+            // Fetch message history for the room
+            try {
+                const messages = await getMessagesFromDB(room);
+                socket.emit('messageHistory', messages); // Send message history to the user
+            } catch (error) {
+                console.error('Error fetching message history:', error);
+            }
 
-         socket.on('join-room', async ({ room, chatName }) => {
-          console.log(`User with chat name ${chatName} joining room: ${room}`);
-          socket.join(room);
-
-        // Fetch message history for the room
-          try {
-            const messages = await getMessagesFromDB(room);
-            socket.emit('messageHistory', messages); // Send message history to the user
-          } catch (error) {
-            console.error('Error fetching message history:', error);
-          }
-
-        // Broadcast that the user joined the room
-          io.to(room).emit('user_joined', `${chatName} joined the room`);
+            // Broadcast that the user joined the room
+            io.to(room).emit('user_joined', `${chatName} joined the room`);
         });
 
         // Handle leave-room event
-        socket.on("leave-room", async (room) => {
+        socket.on('leave-room', (room) => {
             console.log(`User left room: ${room}`);
             socket.leave(room);
-            socket.to(room).emit("user_left", `${socket.id} left the room`);
+            socket.to(room).emit('user_left', `${socket.id} left the room`);
         });
 
         // Handle removeRoom event
-        socket.on("removeRoom", async (roomToRemove) => {
+        socket.on('removeRoom', async (roomToRemove) => {
             console.log(`Removing room: ${roomToRemove}`);
             try {
                 await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
-                io.emit("availableRooms", await getRoomsFromDB()); // Emit updated room list
+                io.emit('availableRooms', await getRoomsFromDB()); // Emit updated room list
             } catch (error) {
-                console.error("Error deleting room:", error);
+                console.error('Error deleting room:', error);
             }
         });
 
         // Handle message event (sending messages in rooms)
-        socket.on("message", async ({ room, message, sender }) => {
+        socket.on('message', async ({ room, message, sender }) => {
             console.log(`Message from ${sender}: ${message}`);
             await saveMessageToDatabase(room, message, sender);
-            io.to(room).emit("message", { sender, message });
+            io.to(room).emit('message', { sender, message });
         });
 
         // Handle playerTurn event (game logic)
-        socket.on("playerTurn", async ({ room, playerId, rollResults }) => {
+        socket.on('playerTurn', async ({ room, playerId, rollResults }) => {
             const game = await createOrGetGame(room);
             if (!game) return;
 
@@ -245,7 +220,7 @@ app.prepare().then(() => {
             }
 
             await client.query('UPDATE games SET current_turn = current_turn + 1 WHERE room_name = $1', [room]);
-            io.to(room).emit("gameStateUpdated", updatedPlayers);
+            io.to(room).emit('gameStateUpdated', updatedPlayers);
         });
     });
 
@@ -255,4 +230,3 @@ app.prepare().then(() => {
 }).catch((err) => {
     console.error('Error preparing Next.js app:', err);
 });
-
