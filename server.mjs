@@ -121,7 +121,7 @@ const addPlayerToGame = async (gameId, playername, chips, isAI = false) => {
             'INSERT INTO players (game_id, playername, chip, is_ai, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
             [gameId, playername, chips, isAI]
         );
-
+        console.log(`${playername} has been added to the game`);
         return playerRes.rows[0];
     } catch (error) {
         console.error('Error adding player:', error);
@@ -138,7 +138,7 @@ const updateGameState = async (room, playerId, rollResults) => {
         const players = playersRes.rows;
 
         const currentPlayer = players.find(player => player.id === playerId);
-
+        console.log('Current player is ${playernam}`);
         // Update game state logic
         if (rollResults) {
             currentPlayer.chips += rollResults; // Modify according to your game rules
@@ -357,8 +357,8 @@ app.prepare().then(() => {
                 // If the player doesn't exist, add them to the players table
                 if (checkPlayer.rows.length === 0) {
                     // Add the player to the database
-                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
-                    console.log(`Player added: ${userName}`);
+                const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
+                console.log(`Player added: ${userName}`);
                 }
                 // Insert player’s turn in the players_turn table (only if it’s the first player)
                 const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
@@ -384,7 +384,7 @@ app.prepare().then(() => {
 
         // Handle leave-room event
         socket.on('leave-room', (room) => {
-            console.log(`User left room: ${room}`);
+            console.log(`User: ${userName}, has left the room: ${room}`);
             socket.leave(room);
             socket.to(room).emit('user_left', `${socket.id} left the room`);
         });
