@@ -356,7 +356,7 @@ app.prepare().then(() => {
                 if (checkPlayer.rows.length === 0) {
                     // Add the player to the database
                     const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
-                    console.log(`Player added: ${playername);
+                    console.log(`Player added: ${playername}`);
                 }
                 // Insert player’s turn in the players_turn table (only if it’s the first player)
                 const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
