@@ -20,7 +20,7 @@ client.connect().then(() => {
     console.error('Failed to connect to PostgreSQL:', error);
 });
 
-// Fetch available rooms from DB
+//fetchh available rooms from DB
 const getRoomsFromDB = async () => {
     console.log("Rooms from DB:", getRoomsFromDB);
     try {
@@ -296,7 +296,7 @@ app.prepare().then(() => {
         //     console.log('available rooms:', rooms);
         //     io.emit('availableRooms', rooms);
         // });
-        // Handle fetching available rooms
+      // Handle fetching available rooms
         socket.on('get-available-rooms', async () => {
             try {
                 const rooms = await getRoomsFromDB();
@@ -305,7 +305,6 @@ app.prepare().then(() => {
                 console.error('Error fetching available rooms:', error);
             }
         });
-
 
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
