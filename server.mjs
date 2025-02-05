@@ -113,13 +113,13 @@ io.on('connection', (socket) => {
 
 
 // Start the server
-// const PORT = process.env.PORT || 3000;
-// server.listen(PORT, () => {
-//     console.log(`Server listening on http://${hostname}:${port}`);
-// });
-httpServer.listen(port, '0.0.0.0', () => {
-        console.log(`Server listening on http://${hostname}:${port}`);
-    });
-}).catch((err) => {
-    console.error('Error preparing Next.js app:', err);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server listening on http://${hostname}:${port}`);
 });
+// httpServer.listen(port, '0.0.0.0', () => {
+//         console.log(`Server listening on http://${hostname}:${port}`);
+//     });
+// }).catch((err) => {
+//     console.error('Error preparing Next.js app:', err);
+// });
