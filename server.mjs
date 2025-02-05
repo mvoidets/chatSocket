@@ -21,12 +21,11 @@ client.connect().then(() => {
     console.error('Failed to connect to PostgreSQL:', error);
 });
 
-//fetchh available rooms from DB
+// Fetch available rooms from DB
 const getRoomsFromDB = async () => {
     console.log("Rooms from DB:", getRoomsFromDB);
     try {
         const res = await client.query('SELECT name FROM rooms');
-        console.log('Available rooms fetched:', rows);
         return res.rows.map(row => row.name);
     } catch (error) {
         console.error('Error fetching rooms from DB:', error);
