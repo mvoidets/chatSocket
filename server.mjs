@@ -47,15 +47,15 @@ const createRoomInDB = async (newRoom) => {
     }
 };
 // Define getMessagesFromDB function
-const getMessagesFromDB = async (roomId) => {
-    try {
-        const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
-        return rows;
-    } catch (error) {
-        console.error('Error fetching messages:', error);
-        return [];
-    }
-};
+// const getMessagesFromDB = async (roomId) => {
+//     try {
+//         const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
+//         return rows;
+//     } catch (error) {
+//         console.error('Error fetching messages:', error);
+//         return [];
+//     }
+// };
 
 // Save message to the database
 const saveMessageToDatabase = async (room, message, sender) => {
@@ -68,18 +68,18 @@ const saveMessageToDatabase = async (room, message, sender) => {
 };
 
 // Get message history
-// export async function getMessagesFromDB(roomName) {
-//     try {
-//         const res = await client.query(
-//             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
-//             [roomName]
-//         );
-//         return res.rows; // Return messages ordered by creation time
-//     } catch (error) {
-//         console.error('Error fetching messages from DB:', error);
-//         return []; // Return empty array if there's an error
-//     }
-// }
+export async function getMessagesFromDB(roomName) {
+    try {
+        const res = await client.query(
+            'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
+            [roomName]
+        );
+        return res.rows; // Return messages ordered by creation time
+    } catch (error) {
+        console.error('Error fetching messages from DB:', error);
+        return []; // Return empty array if there's an error
+    }
+}
 
 // Dice rolling logic
 const rollDice = (chips) => {
