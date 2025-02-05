@@ -459,7 +459,35 @@ app.prepare().then(() => {
                 console.error('Error processing player turn:', error);
             }
         });
-    });
+
+        // Listen for the dice roll event
+
+  console.log('A user connected');
+
+  // When the client emits 'roll-dice', handle the dice roll and update DB
+  socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
+    try {
+      // Step 1: Roll the dice
+      const diceResults = rollDice(currentChips); // This would be your dice logic
+
+      // Step 2: Process the dice results (update players, chips, etc.)
+      const updatedPlayers = await processDiceResults(diceResults, playerId, room);
+
+      // Step 3: Update the database with new player states
+      await updatePlayerChips(updatedPlayers);
+
+      // Step 4: Emit the results back to the client
+      io.to(room).emit('gameStateUpdated', updatedPlayers); // Broadcast to room
+
+      // Optionally, emit the dice results for the current player
+      socket.emit('diceResult', diceResults); 
+    } catch (error) {
+      console.error('Error rolling dice:', error);
+      socket.emit('error', 'An error occurred while processing your turn.');
+    }
+  });
+});
+
 
 
 
