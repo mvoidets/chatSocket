@@ -147,7 +147,7 @@ app.prepare().then(() => {
         },
     });
 io.on('connection', (socket) => {
-    console.log('A player connected');
+    console.log('A player connected: ${username}');
 
     socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
         try {
