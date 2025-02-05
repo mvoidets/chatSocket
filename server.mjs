@@ -83,6 +83,19 @@ const updatePlayerChips = async (playerId, totalRoll, room) => {
 };
 
 // Socket event handling
+const app = next({ dev, hostname, port });
+const handle = app.getRequestHandler();
+
+app.prepare().then(() => {
+    const httpServer = createServer(handle);
+    const io = new Server(httpServer, {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"],
+            allowedHeaders: ["Content-Type"],
+            credentials: true,
+        },
+    });
 io.on('connection', (socket) => {
     console.log('A player connected');
 
@@ -123,10 +136,9 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log('Player disconnected'));
 });
 
-
 httpServer.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on http://${hostname}:${port}`);
-
+});
 }).catch((err) => {
 console.error('Error preparing Next.js app:', err);
 });
