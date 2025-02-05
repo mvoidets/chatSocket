@@ -9,6 +9,16 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+// Define getMessagesFromDB function
+const getMessagesFromDB = async (roomId) => {
+    try {
+        const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
+        return rows;
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+    }
+};
 // Dice rolling logic
 const rollDice = (chips) => {
     const rollResults = [];
@@ -84,15 +94,23 @@ io.on('connection', (socket) => {
     });
 
     // Room join handling
-    socket.on('join-room', (room) => {
+  
+    socket.on('join-room', async (room) => {
         socket.join(room);
-        console.log('A player joined room:', room);
+        console.log(`Player joined room: ${room}`);
+        
+        try {
+            const messages = await getMessagesFromDB(room);
+            io.to(room).emit('messages', messages); // Emit messages to clients in the room
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+            socket.emit('error', 'Error fetching messages.');
+        }
     });
 
-    socket.on('disconnect', () => {
-        console.log('A player disconnected');
-    });
+    socket.on('disconnect', () => console.log('Player disconnected'));
 });
+
 
 // Start the server
 // const PORT = process.env.PORT || 3000;
