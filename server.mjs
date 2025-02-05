@@ -381,7 +381,7 @@ app.prepare().then(() => {
 
         // Handle leave-room event
         socket.on('leave-room', (room) => {
-            console.log(`User: ${userName}, has left the room: ${room}`);
+            console.log(`User: ${playername}, has left the room: ${room}`);
             socket.leave(room);
             socket.to(room).emit('user_left', `${socket.id} left the room`);
         });
