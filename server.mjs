@@ -1,13 +1,25 @@
-import express from 'express';
+import { createServer } from 'node:http';
+import next from 'next';
 import { Server } from 'socket.io';
-import http from 'http';
-import { client } from './db.js';
+import pkg from 'pg';
+const { Client } = pkg;
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const dev = process.env.NODE_ENV !== 'production';
+const hostname = process.env.HOSTNAME || 'localhost';
+const port = process.env.PORT || '3005';
 
-app.use(express.static('public'));
+
+// Database client initialization
+const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+});
+
+client.connect().then(() => {
+    console.log('Connected to PostgreSQL database');
+}).catch((error) => {
+    console.error('Failed to connect to PostgreSQL:', error);
+});
+
 
 // Define getMessagesFromDB function
 const getMessagesFromDB = async (roomId) => {
@@ -112,14 +124,9 @@ io.on('connection', (socket) => {
 });
 
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+httpServer.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on http://${hostname}:${port}`);
+
+}).catch((err) => {
+console.error('Error preparing Next.js app:', err);
 });
-// httpServer.listen(port, '0.0.0.0', () => {
-//         console.log(`Server listening on http://${hostname}:${port}`);
-//     });
-// }).catch((err) => {
-//     console.error('Error preparing Next.js app:', err);
-// });
