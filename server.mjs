@@ -69,18 +69,18 @@ const saveMessageToDatabase = async (room, message, sender) => {
 };
 
 // Get message history
-export async function getMessagesFromDB(roomName) {
-    try {
-        const res = await client.query(
-            'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
-            [roomName]
-        );
-        return res.rows; // Return messages ordered by creation time
-    } catch (error) {
-        console.error('Error fetching messages from DB:', error);
-        return []; // Return empty array if there's an error
-    }
-}
+// export async function getMessagesFromDB(roomName) {
+//     try {
+//         const res = await client.query(
+//             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
+//             [roomName]
+//         );
+//         return res.rows; // Return messages ordered by creation time
+//     } catch (error) {
+//         console.error('Error fetching messages from DB:', error);
+//         return []; // Return empty array if there's an error
+//     }
+// }
 
 // Dice rolling logic
 const rollDice = (chips) => {
@@ -267,6 +267,21 @@ io.on('connection', (socket) => {
             }
         });
 
+    //joining game/ multi player
+    io.on('connection', (socket) => {
+    console.log('A player connected:', socket.id);
+
+    // Add player to the game queue
+    addToGameQueue(socket);
+
+    // Listen for disconnecting player
+    socket.on('disconnect', () => {
+        console.log(`Player ${socket.id} disconnected`);
+        gameQueue = gameQueue.filter(player => player.id !== socket.id);
+    });
+});
+
+
         // Handle leave-room event
         socket.on('leave-room', (room) => {
             console.log(`User: ${userName}, has left the room: ${room}`);
@@ -329,5 +344,5 @@ httpServer.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on http://${hostname}:${port}`);
 });
 }).catch((err) => {
-console.error('Error preparing Next.js app:', err);
+console.error('Error preparing app:', err);
 });
