@@ -63,12 +63,12 @@ export async function getMessagesFromDB(roomName) {
         const res = await client.query(
             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
             [roomName]
-            console.log('Message from DB:', res.rows[0]);
         );
-        return res.rows; // Return messages ordered by creation time
+        console.log('Message from DB:', res.rows[0]);
+        return res.rows; 
     } catch (error) {
         console.error('Error fetching messages from DB:', error);
-        return []; // Return empty array if there's an error
+        return []; 
     }
 };
 
@@ -139,44 +139,44 @@ app.prepare().then(() => {
             credentials: true,
         },
     });
-io.on('connection', (socket) => {
-    console.log('A player connected: ${name}');
+    io.on('connection', (socket) => {
+        console.log('A player connected: ${name}');
 
-    socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
-        try {
-            // Roll the dice
-            const diceResults = rollDice(currentChips);
+        socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
+            try {
+                // Roll the dice
+                const diceResults = rollDice(currentChips);
 
-            // Process the dice results and update players
-            const updatedPlayers = await processDiceResults(diceResults, playerId, room);
+                // Process the dice results and update players
+                const updatedPlayers = await processDiceResults(diceResults, playerId, room);
 
-            // Emit updated game state to all players in the room
-            io.to(room).emit('gameStateUpdated', updatedPlayers);
+                // Emit updated game state to all players in the room
+                io.to(room).emit('gameStateUpdated', updatedPlayers);
 
-            // Emit dice result to the player who rolled
-            socket.emit('diceResult', diceResults);
-        } catch (error) {
-            console.error('Error rolling dice:', error);
-            socket.emit('error', 'An error occurred while processing your turn.');
-        }
-    });
+                // Emit dice result to the player who rolled
+                socket.emit('diceResult', diceResults);
+            } catch (error) {
+                console.error('Error rolling dice:', error);
+                socket.emit('error', 'An error occurred while processing your turn.');
+            }
+        });
 
-    // Room join handling
-  
-    socket.on('join-room', async (room) => {
-        socket.join(room);
-        console.log(`${name} joined room: ${room}`);
-        
-        try {
-            const messages = await getMessagesFromDB(room);
-            io.to(room).emit('messages', messages); // Emit messages to clients in the room
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-            socket.emit('error', 'Error fetching messages.');
-        }
-    });
+        // Room join handling
 
-      // Handle fetching available rooms
+        socket.on('join-room', async (room) => {
+            socket.join(room);
+            console.log(`${name} joined room: ${room}`);
+
+            try {
+                const messages = await getMessagesFromDB(room);
+                io.to(room).emit('messages', messages); // Emit messages to clients in the room
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+                socket.emit('error', 'Error fetching messages.');
+            }
+        });
+
+        // Handle fetching available rooms
         socket.on('get-available-rooms', async () => {
             try {
                 const rooms = await getRoomsFromDB();
@@ -190,7 +190,7 @@ io.on('connection', (socket) => {
         socket.on('createRoom', async (newRoom) => {
             try {
                 const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
-               
+
                 if (checkRes.rows.length > 0) {
                     console.log('Room already exists');
                     return;
@@ -218,7 +218,7 @@ io.on('connection', (socket) => {
         });
 
 
-       // Handle join-room event
+        // Handle join-room event
         socket.on('join-room', async ({ room, userName }) => {
             console.log(`User with chat name ${userName} joining room: ${room}`);
             socket.join(room);
@@ -261,45 +261,45 @@ io.on('connection', (socket) => {
             }
         });
 
-    //joining game/ multi player
-// Array to store players waiting for the game
-let gameQueue = [];
+        //joining game/ multi player
+        // Array to store players waiting for the game
+        let gameQueue = [];
 
-io.on('connection', (socket) => {
-    console.log('A player connected:', socket.id);
+        io.on('connection', (socket) => {
+            console.log('A player connected:', socket.id);
 
-    // Add player to the game queue when they connect
-    addToGameQueue(socket);
+            // Add player to the game queue when they connect
+            addToGameQueue(socket);
 
-    // Listen for a disconnecting player
-    socket.on('disconnect', () => {
-        console.log(`Player ${socket.id} disconnected`);
-        gameQueue = gameQueue.filter(player => player.id !== socket.id);
-        // Emit to the clients that a player left
-        io.emit('gameQueueUpdated', gameQueue);
-    });
-});
+            // Listen for a disconnecting player
+            socket.on('disconnect', () => {
+                console.log(`Player ${socket.id} disconnected`);
+                gameQueue = gameQueue.filter(player => player.id !== socket.id);
+                // Emit to the clients that a player left
+                io.emit('gameQueueUpdated', gameQueue);
+            });
+        });
 
-// Function to add player to the game queue
-const addToGameQueue = (socket) => {
-    // Add the player to the queue
-    gameQueue.push({
-        id: socket.id,
-        username: socket.username || `Player ${gameQueue.length + 1}`, // You can customize this to store player names
-    });
+        // Function to add player to the game queue
+        const addToGameQueue = (socket) => {
+            // Add the player to the queue
+            gameQueue.push({
+                id: socket.id,
+                username: socket.username || `Player ${gameQueue.length + 1}`, // You can customize this to store player names
+            });
 
-    console.log(`Player ${socket.id} added to the queue`);
+            console.log(`Player ${socket.id} added to the queue`);
 
-    // Emit the updated game queue to all connected clients
-    io.emit('gameQueueUpdated', gameQueue);
+            // Emit the updated game queue to all connected clients
+            io.emit('gameQueueUpdated', gameQueue);
 
-    // If there are enough players (e.g. 2), start the game
-    if (gameQueue.length >= 2) {
-        io.emit('startGame', gameQueue);
-        // Now you can reset the game queue or do other logic to start the game
-        gameQueue = []; // Clear the queue after the game starts
-    }
-};
+            // If there are enough players (e.g. 2), start the game
+            if (gameQueue.length >= 2) {
+                io.emit('startGame', gameQueue);
+                // Now you can reset the game queue or do other logic to start the game
+                gameQueue = []; // Clear the queue after the game starts
+            }
+        };
 
 
         // Handle leave-room event
@@ -358,11 +358,11 @@ const addToGameQueue = (socket) => {
                 socket.emit('error', 'An error occurred while processing your turn.');
             }
         });
-  })
+    })
 
-httpServer.listen(port, '0.0.0.0', () => {
-    console.log(`Server listening on http://${hostname}:${port}`);
-});
+    httpServer.listen(port, '0.0.0.0', () => {
+        console.log(`Server listening on http://${hostname}:${port}`);
+    });
 }).catch((err) => {
-console.error('Error preparing app:', err);
+    console.error('Error preparing app:', err);
 });
