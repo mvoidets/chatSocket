@@ -224,21 +224,29 @@ app.prepare().then(() => {
         });
 
         // Handle message event (sending messages in rooms)
+       // Handle message event (sending messages in rooms)
         socket.on('message', async ({ room, message, sender }) => {
             console.log(`Sending message to room: ${room}, Message: ${message}`);
             console.log(`Message received from ${sender} in room ${room}: ${message}`);
+        
+            // Check for missing data early on
             if (!room || !message || !sender) {
-                console.error("Missing information in message event.");
-                return;
+            console.error("Missing information in message event.");
+            return;
             }
-
+        
             try {
-                await saveMessageToDatabase(room, message, sender);
-                io.to(room).emit('message', { sender, message });
+            // Save the message to the database
+            await saveMessageToDatabase(room, sender, message);
+        
+            // Emit the new message to the room
+            io.to(room).emit('newMessage', { sender, message });
             } catch (error) {
-                console.error('Error saving message to DB:', error);
+            console.error('Error saving message to DB:', error);
             }
-        }); // <-- Closing brace here
+        });
+  
+        
 
     }); // <-- Closing brace here
 
