@@ -64,11 +64,11 @@ export async function getMessagesFromDB(roomName) {
             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
             [roomName]
         );
-        console.log('Message from DB:', message;
-        return res.rows; 
+        console.log('Message from DB:', message);
+        return res.rows;
     } catch (error) {
         console.error('Error fetching messages from DB:', error);
-        return []; 
+        return [];
     }
 };
 
@@ -84,13 +84,13 @@ const rollDice = (chips) => {
 };
 
 // Process dice roll results and update player state
-const processDiceResults = async (diceResults, playerId, room) => {
+const processDiceResults = async (diceResults, playerId, roomId) => {
     try {
         const totalRoll = diceResults.reduce((sum, roll) => sum + roll, 0);
-        const updatedPlayers = await updatePlayerChips(playerId, totalRoll, room);
+        const updatedPlayers = await updatePlayerChips(playerId, totalRoll, roomId);
         return updatedPlayers;
     } catch (error) {
-        console.error('Error processing dice results:', error);
+        //console.error('Error processing dice results:', error);
         throw error;
     }
 };
@@ -163,28 +163,21 @@ app.prepare().then(() => {
 
         // Room join handling
 
-        socket.on('join-room', async (room) => {
+        socket.on('join-room', async (room, name) => {
+            console.log(`User with chat name ${name} joining room: ${room}`);
             socket.join(room);
             console.log(`${name} joined room: ${room}`);
 
             try {
                 const messages = await getMessagesFromDB(room);
-                io.to(room).emit('messages', messages); // Emit messages to clients in the room
+                io.to(room).emit('messages', sender, messages); // Emit messages to clients in the room
             } catch (error) {
                 console.error('Error fetching messages:', error);
                 socket.emit('error', 'Error fetching messages.');
             }
         });
 
-        // Handle fetching available rooms
-        socket.on('get-available-rooms', async () => {
-            try {
-                const rooms = await getRoomsFromDB();
-                io.emit('availableRooms', rooms);
-            } catch (error) {
-                console.error('Error fetching available rooms:', error);
-            }
-        });
+
 
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
@@ -217,10 +210,9 @@ app.prepare().then(() => {
             }
         });
 
-
         // Handle join-room event
-        socket.on('join-room', async ({ room, userName }) => {
-            console.log(`User with chat name ${userName} joining room: ${room}`);
+        socket.on('join-room', async ({ room, name }) => {
+            console.log(`User with chat name ${name} joining room: ${room}`);
             socket.join(room);
 
             try {
