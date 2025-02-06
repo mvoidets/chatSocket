@@ -230,10 +230,10 @@ app.prepare().then(() => {
         });
 
         // Handle leave-room event
-        socket.on('leave-room', (room, userName) => {
+        socket.on('leave-room', (room, name) => {
             console.log(`User: ${name}, has left the room: ${room}`);
             socket.leave(room);
-            socket.to(room).emit('user_left', `${userName} has left the room`);
+            socket.to(room).emit('user_left', `${name} has left the room`);
         });
 
         // Handle removeRoom event
@@ -274,7 +274,14 @@ app.prepare().then(() => {
             console.error('Error saving message to DB:', error);
             }
         });
-  
+        socket.on("get-message-history", async (room) => {
+            // Query your database to fetch the message history for this room
+            const history = await getMessageHistoryFromDatabase(room);
+            
+            // Emit the message history back to the client
+            socket.emit("messageHistory", history, room);
+          });
+          
         
 
     }); // <-- Closing brace here
