@@ -160,6 +160,8 @@ app.prepare().then(() => {
                 // Ensure the user joins the room
                 console.log(`User ${userName} is attempting to join room: ${room}`);
                 socket.join(room);
+                console.log(`Rooms user is currently in: ${JSON.stringify(socket.rooms)}`);
+
                 console.log(`${userName} joined the room: ${room}`); // Log the database query for fetching message history
                 console.log(`Fetching message history for room: ${room}`);
                 const messages = await getMessagesFromDB(room);
@@ -235,7 +237,7 @@ app.prepare().then(() => {
 
         // Handle message event (sending messages in rooms)
         socket.on('message', async ({ room, message, sender }) => {
-            console.log(`Message from ${sender}: ${message}`);
+            console.log(`Sending message to room: ${room}, Message: ${message}`);
             await saveMessageToDatabase(room, message, sender);
             io.to(room).emit('message', { sender, message });
         });
