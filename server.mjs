@@ -170,7 +170,6 @@ app.prepare().then(() => {
                 console.log(`Message history fetched for room: ${room}, sending to client.`);
                 socket.emit('messageHistory', messages);
 
-                socket.emit('messageHistory', messages);
                 // Log broadcasting the user joined to the room
                 console.log(`Broadcasting user joined message to room: ${room}`);
                 io.to(room).emit('user_joined', `${userName} has joined the room: ${room}`);
@@ -238,8 +237,9 @@ app.prepare().then(() => {
         // Handle message event (sending messages in rooms)
         socket.on('message', async ({ room, message, sender }) => {
             console.log(`Sending message to room: ${room}, Message: ${message}`);
+             console.log(`Message received from ${sender} in room ${room}: ${message}`);
             await saveMessageToDatabase(room, message, sender);
-            io.to(room).emit('message', { sender, message });
+            io.to(room).emit('message', { sender, message,room });
         });
     });
 
