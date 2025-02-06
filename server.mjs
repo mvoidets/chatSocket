@@ -47,15 +47,15 @@ const createRoomInDB = async (newRoom) => {
     }
 };
 // Define getMessagesFromDB function
-// const getMessagesFromDB = async (roomId) => {
-//     try {
-//         const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
-//         return rows;
-//     } catch (error) {
-//         console.error('Error fetching messages:', error);
-//         return [];
-//     }
-// };
+const getMessagesFromDB = async (roomId) => {
+    try {
+        const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
+        return rows;
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+    }
+};
 
 // Save message to the database
 const saveMessageToDatabase = async (room, message, sender) => {
