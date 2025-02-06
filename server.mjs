@@ -64,7 +64,7 @@ export async function getMessagesFromDB(roomName) {
             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
             [roomName]
         );
-        console.log('Message from DB:', message);
+        //console.log('Message from DB:', message);
         return res.rows;
     } catch (error) {
         console.error('Error fetching messages from DB:', error);
