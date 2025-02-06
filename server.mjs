@@ -161,23 +161,56 @@ app.prepare().then(() => {
             }
         });
 
-        // Room join handling
-
-        socket.on('join-room', async (room, name) => {
+        // Handle join-room event
+        socket.on('join-room', async ({ room, name }) => {
             console.log(`User with chat name ${name} joining room: ${room}`);
             socket.join(room);
-            console.log(`${name} joined room: ${room}`);
 
             try {
-                const messages = await getMessagesFromDB(room);
-                io.to(room).emit('messages', sender, messages); // Emit messages to clients in the room
+                // Get or create the game if it doesn't exist
+                const game = await createOrGetGame(room);
+                if (!game) {
+                    console.error('Game not found!');
+                    return;
+                }
+
+                // Check if the player already exists in the players table for this game
+                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, name]);
+
+                // If the player doesn't exist, add them to the players table
+                let playerId;
+                if (checkPlayer.rows.length === 0) {
+                    // Add the player to the database
+                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, name, 3]); // Initial chips
+                    console.log(`Player added: ${name}`);
+                    playerId = res.rows[0].id;  // Set player ID to the newly inserted player
+                } else {
+                    playerId = checkPlayer.rows[0].id;  // Use the existing player ID
+                }
+
+                // Insert player’s turn in the players_turn table (only if it’s the first player)
+                const currentTurn = await client.query('SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number ASC LIMIT 1', [game.id]);
+
+                if (currentTurn.rows.length === 0) {
+                    // If no player turn records exist, make the current player the first player
+                    await client.query(
+                        'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, 1)',
+                        [game.id, playerId]
+                    );
+                }
+
+                // Fetch the message history for the room
+                const messages = await getMessagesFromDB(room); // You don't need to pass `name` to `getMessagesFromDB` in this case
+                socket.emit('messageHistory', messages); // Send message history to the user
+
+                // Broadcast that the user joined the room
+                io.to(room).emit('user_joined', `${name} joined the room`);
+
             } catch (error) {
-                console.error('Error fetching messages:', error);
-                socket.emit('error', 'Error fetching messages.');
+                console.error('Error joining room:', error);
+                socket.emit('error', 'An error occurred while joining the room');
             }
         });
-
-
 
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
@@ -209,50 +242,8 @@ app.prepare().then(() => {
                 console.error('Error fetching available rooms:', error);
             }
         });
-        // Handle join-room event
-        socket.on('join-room', async ({ room, name }) => {
-            console.log(`User with chat name ${userName} joining room: ${room}`);
-            socket.join(room);
 
-            try {
-                // Get or create the game if it doesn't exist
-                const game = await createOrGetGame(room);
-                if (!game) {
-                    console.error('Game not found!');
-                    return;
-                }
 
-                // Check if the player already exists in the players table for this game
-                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
-                // If the player doesn't exist, add them to the players table
-                if (checkPlayer.rows.length === 0) {
-                    // Add the player to the database
-                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
-                    console.log(`Player added: ${playername}`);
-                }
-                // Insert player’s turn in the players_turn table (only if it’s the first player)
-                const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
-                const currentTurn = await client.query('SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number ASC LIMIT 1', [game.id]);
-
-                if (currentTurn.rows.length === 0) {
-                    // If no player turn records exist, make the current player the first player
-                    await client.query(
-                        'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, 1)',
-                        [game.id, playerId]
-                    );
-                }
-                // Fetch the message history for the room
-                const messages = await getMessagesFromDB(room, name);
-                socket.emit('messageHistory', messages); // Send message history to the user
-
-                // Broadcast that the user joined the room
-                io.to(room).emit('user_joined', `${name} joined the ${room}`);
-            } catch (error) {
-                console.error('Error joining room:', error);
-            }
-        });
-
-        //joining game/ multi player
         // Array to store players waiting for the game
         let gameQueue = [];
 
