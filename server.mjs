@@ -63,6 +63,7 @@ export async function getMessagesFromDB(roomName) {
         const res = await client.query(
             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
             [roomName]
+            console.log('Message from DB:', res.rows[0]);
         );
         return res.rows; // Return messages ordered by creation time
     } catch (error) {
