@@ -178,11 +178,11 @@ app.prepare().then(() => {
                 console.log(`${userName} joined the room: ${room}`);
 
                 // Fetch or create the game
-                const game = await createOrGetGame(room);
-                if (!game) {
-                    console.error('Game not found!');
-                    return;
-                }
+                // const game = await createOrGetGame(room);
+                // if (!game) {
+                //     console.error('Game not found!');
+                //     return;
+                // }
 
                 // Check if the player already exists in the database for the room/game
                 const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
