@@ -140,7 +140,7 @@ app.prepare().then(() => {
         },
     });
 io.on('connection', (socket) => {
-    console.log('A player connected: ${username}');
+    console.log('A player connected: ${name}');
 
     socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
         try {
@@ -165,7 +165,7 @@ io.on('connection', (socket) => {
   
     socket.on('join-room', async (room) => {
         socket.join(room);
-        console.log(`Player joined room: ${room}`);
+        console.log(`${name} joined room: ${room}`);
         
         try {
             const messages = await getMessagesFromDB(room);
@@ -190,6 +190,7 @@ io.on('connection', (socket) => {
         socket.on('createRoom', async (newRoom) => {
             try {
                 const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
+               
                 if (checkRes.rows.length > 0) {
                     console.log('Room already exists');
                     return;
@@ -210,6 +211,7 @@ io.on('connection', (socket) => {
             try {
                 const rooms = await getRoomsFromDB();
                 io.emit('availableRooms', rooms);
+                console.log('available rooms: ${rooms}');
             } catch (error) {
                 console.error('Error fetching available rooms:', error);
             }
