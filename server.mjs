@@ -23,9 +23,9 @@ client.connect().then(() => {
 
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
-    console.log('Rooms from DB:',res.rows.map(row => row.name));
     try {
         const res = await client.query('SELECT name FROM rooms');
+        console.log('Rooms from DB:', res.rows.map(row => row.name));  // Log after the query
         return res.rows.map(row => row.name);
     } catch (error) {
         console.error('Error fetching rooms from DB:', error);
@@ -204,12 +204,11 @@ app.prepare().then(() => {
             try {
                 const rooms = await getRoomsFromDB();
                 io.emit('availableRooms', rooms);
-                console.log('available rooms: ${rooms}');
+                console.log(`Available rooms: ${rooms}`);
             } catch (error) {
                 console.error('Error fetching available rooms:', error);
             }
         });
-
         // Handle join-room event
         socket.on('join-room', async ({ room, name }) => {
             console.log(`User with chat name ${userName} joining room: ${room}`);
@@ -243,11 +242,11 @@ app.prepare().then(() => {
                     );
                 }
                 // Fetch the message history for the room
-                const messages = await getMessagesFromDB(room);
+                const messages = await getMessagesFromDB(room, name);
                 socket.emit('messageHistory', messages); // Send message history to the user
 
                 // Broadcast that the user joined the room
-                io.to(room).emit('user_joined', `${userName} joined the room`);
+                io.to(room).emit('user_joined', `${name} joined the ${room}`);
             } catch (error) {
                 console.error('Error joining room:', error);
             }
