@@ -230,10 +230,10 @@ app.prepare().then(() => {
         });
 
         // Handle leave-room event
-        socket.on('leave-room', (room, name) => {
+        socket.on('leave-room', (room, userName) => {
             console.log(`User: ${name}, has left the room: ${room}`);
             socket.leave(room);
-            socket.to(room).emit('user_left', `${socket.id} left the room`);
+            socket.to(room).emit('user_left', `${userName} has left the room`);
         });
 
         // Handle removeRoom event
