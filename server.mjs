@@ -23,7 +23,7 @@ client.connect().then(() => {
 
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
-    console.log("Rooms from DB:", getRoomsFromDB);
+    console.log("Rooms from DB:", rooms);
     try {
         const res = await client.query('SELECT name FROM rooms');
         return res.rows.map(row => row.name);
@@ -64,7 +64,7 @@ export async function getMessagesFromDB(roomName) {
             'SELECT sender, message, created_at FROM messages WHERE room_name = $1 ORDER BY created_at ASC',
             [roomName]
         );
-        console.log('Message from DB:', res.rows[0]);
+        console.log('Message from DB:', message;
         return res.rows; 
     } catch (error) {
         console.error('Error fetching messages from DB:', error);
@@ -304,7 +304,7 @@ app.prepare().then(() => {
 
         // Handle leave-room event
         socket.on('leave-room', (room) => {
-            console.log(`User: ${userName}, has left the room: ${room}`);
+            console.log(`User: ${name}, has left the room: ${room}`);
             socket.leave(room);
             socket.to(room).emit('user_left', `${socket.id} left the room`);
         });
