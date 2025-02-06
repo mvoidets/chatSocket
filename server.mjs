@@ -46,16 +46,6 @@ const createRoomInDB = async (newRoom) => {
         return null;
     }
 };
-// Define getMessagesFromDB function
-const getMessagesFromDB = async (roomId) => {
-    try {
-        const { rows } = await client.query('SELECT * FROM messages WHERE room_id = $1', [roomId]);
-        return rows;
-    } catch (error) {
-        console.error('Error fetching messages:', error);
-        return [];
-    }
-};
 
 // Save message to the database
 const saveMessageToDatabase = async (room, message, sender) => {
@@ -79,7 +69,9 @@ export async function getMessagesFromDB(roomName) {
         console.error('Error fetching messages from DB:', error);
         return []; // Return empty array if there's an error
     }
-}
+};
+
+
 
 // Dice rolling logic
 const rollDice = (chips) => {
