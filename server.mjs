@@ -160,7 +160,7 @@ app.prepare().then(() => {
                 // Ensure the user joins the room
                 console.log(`User ${userName} is attempting to join room: ${room}`);
                 socket.join(room);
-                console.log(`Rooms user is currently in: ${JSON.stringify(socket.rooms)}`);
+                console.log(`${userName} joined the room: ${room}`);
 
                 console.log(`${userName} joined the room: ${room}`); // Log the database query for fetching message history
                 console.log(`Fetching message history for room: ${room}`);
@@ -237,11 +237,21 @@ app.prepare().then(() => {
         // Handle message event (sending messages in rooms)
         socket.on('message', async ({ room, message, sender }) => {
             console.log(`Sending message to room: ${room}, Message: ${message}`);
-             console.log(`Message received from ${sender} in room ${room}: ${message}`);
-            await saveMessageToDatabase(room, message, sender);
-            io.to(room).emit('message', { sender, message,room });
-        });
-    });
+            console.log(`Message received from ${sender} in room ${room}: ${message}`);
+            if (!room || !message || !sender) {
+                console.error("Missing information in message event.");
+                return;
+            }
+
+            try {
+                await saveMessageToDatabase(room, message, sender);
+                io.to(room).emit('message', { sender, message });
+            } catch (error) {
+                console.error('Error saving message to DB:', error);
+            }
+        }); // <-- Closing brace here
+
+    }); // <-- Closing brace here
 
     // Start the server
     httpServer.listen(port, '0.0.0.0', () => {
