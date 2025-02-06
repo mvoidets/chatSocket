@@ -160,7 +160,7 @@ app.prepare().then(() => {
         // Fetch and emit message history for the room
         const messages = await getMessagesFromDB(room);
         socket.emit('messageHistory', messages, room);  // Emit message history for the specific room
-
+        
         // Emit system message for the user joining
         io.to(room).emit('user_joined', `${userName} has joined the room: ${room}`, room);
     } catch (error) {
@@ -172,20 +172,29 @@ app.prepare().then(() => {
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
             try {
+                // Check if room already exists
                 const checkRes = await client.query('SELECT * FROM rooms WHERE name = $1', [newRoom]);
-
+        
                 if (checkRes.rows.length > 0) {
                     console.log('Room already exists');
+                    // Emit failure response to client
+                    socket.emit('createRoomResponse', { success: false, error: 'Room already exists' });
                     return;
                 }
-
+        
+                // Create the new room in the database
                 const res = await client.query('INSERT INTO rooms (name) VALUES ($1) RETURNING *', [newRoom]);
                 console.log(`Room created: ${newRoom}`);
-
-                // Emit the updated available rooms
+        
+                // Emit success response to the client
+                socket.emit('createRoomResponse', { success: true, room: newRoom });
+        
+                // Emit the updated available rooms to all clients
                 io.emit('availableRooms', await getRoomsFromDB());
             } catch (error) {
                 console.error('Error creating room:', error);
+                // Emit error response to client
+                socket.emit('createRoomResponse', { success: false, error: 'Error creating room' });
             }
         });
 
@@ -240,7 +249,7 @@ app.prepare().then(() => {
             await saveMessageToDatabase(room, sender, message);
         
             // Emit the new message to the room
-            io.to(room).emit('newMessage', { sender, message, room });
+            io.to(room).emit('newMessage', { sender, message,room });
             } catch (error) {
             console.error('Error saving message to DB:', error);
             }
