@@ -185,24 +185,24 @@ app.prepare().then(() => {
                 // }
 
                 // Check if the player already exists in the database for the room/game
-                const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
-                if (checkPlayer.rows.length === 0) {
-                    // Add the player if they don't exist in the players table
-                    const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
-                    console.log(`Player added: ${userName}`);
-                }
+                // const checkPlayer = await client.query('SELECT * FROM players WHERE game_id = $1 AND playername = $2', [game.id, userName]);
+                // if (checkPlayer.rows.length === 0) {
+                //     // Add the player if they don't exist in the players table
+                //     const res = await client.query('INSERT INTO players (game_id, playername, chips) VALUES ($1, $2, $3) RETURNING *', [game.id, userName, 3]); // Initial chips
+                //     console.log(`Player added: ${userName}`);
+                // }
 
                 // Insert the player’s turn into the players_turn table if it's the first player
-                const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
-                const currentTurn = await client.query('SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number ASC LIMIT 1', [game.id]);
+                // const playerId = checkPlayer.rows.length === 0 ? res.rows[0].id : checkPlayer.rows[0].id;
+                // const currentTurn = await client.query('SELECT * FROM players_turn WHERE game_id = $1 ORDER BY turn_number ASC LIMIT 1', [game.id]);
 
-                if (currentTurn.rows.length === 0) {
-                    // Set the current player as the first player
-                    await client.query(
-                        'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, 1)',
-                        [game.id, playerId]
-                    );
-                }
+                // if (currentTurn.rows.length === 0) {
+                //     // Set the current player as the first player
+                //     await client.query(
+                //         'INSERT INTO players_turn (game_id, player_id, turn_number) VALUES ($1, $2, 1)',
+                //         [game.id, playerId]
+                //     );
+                //}
 
                 // Fetch message history for the room and send it to the client
                 const messages = await getMessagesFromDB(room, userName);
