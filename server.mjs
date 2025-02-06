@@ -138,6 +138,10 @@ app.prepare().then(() => {
             allowedHeaders: ["Content-Type"],
             credentials: true,
         },
+        pingInterval: 25000,  // Send ping every 25 seconds
+        pingTimeout: 60000,   // Timeout if no pong response in 60 seconds
+    });
+
     });
     io.on('connection', (socket) => {
         console.log(`A player connected: ${socket.id}`);
