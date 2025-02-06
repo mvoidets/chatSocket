@@ -148,35 +148,26 @@ app.prepare().then(() => {
 
         // Handle the 'join-room' event
         socket.on('join-room', async ({ room, userName }) => {
-            console.log(`Received join-room event for user: ${userName}, room: ${room}`);  // Log for debugging
+       console.log(`Received join-room event for user: ${userName}, room: ${room}`);
+    if (!userName) {
+        console.error("Error: userName is undefined when joining room");
+        return;
+    }
 
-            // If userName is undefined, return early
-            if (!userName) {
-                console.error("Error: userName is undefined when joining room");
-                return;
-            }
+    try {
+        socket.join(room);
 
-            try {
-                // Ensure the user joins the room
-                console.log(`User ${userName} is attempting to join room: ${room}`);
-                socket.join(room);
-                console.log(`${userName} joined the room: ${room}`);
+        // Fetch and emit message history for the room
+        const messages = await getMessagesFromDB(room);
+        socket.emit('messageHistory', messages, room);  // Emit message history for the specific room
 
-                console.log(`${userName} joined the room: ${room}`); // Log the database query for fetching message history
-                console.log(`Fetching message history for room: ${room}`);
-                const messages = await getMessagesFromDB(room);
+        // Emit system message for the user joining
+        io.to(room).emit('user_joined', `${userName} has joined the room: ${room}`, room);
+    } catch (error) {
+        console.error('Error in join-room handler:', error);
+    }
+});
 
-                // Log when message history is received and sent
-                console.log(`Message history fetched for room: ${room}, sending to client.`);
-                socket.emit('messageHistory', messages);
-
-                // Log broadcasting the user joined to the room
-                console.log(`Broadcasting user joined message to room: ${room}`);
-                io.to(room).emit('user_joined', `${userName} has joined the room: ${room}`);
-            } catch (error) {
-                console.error('Error in join-room handler:', error);
-            }
-        });
 
         // Handle room creation
         socket.on('createRoom', async (newRoom) => {
@@ -221,14 +212,12 @@ app.prepare().then(() => {
             console.log(`Removing room: ${roomToRemove}`);
 
             try {
-                // Delete messages from the database for the specified room
                 await client.query('DELETE FROM messages WHERE room_name = $1', [roomToRemove]);
-
-                // Delete the room from the database
                 await client.query('DELETE FROM rooms WHERE name = $1', [roomToRemove]);
-
-                // Emit updated room list to clients
-                io.emit("availableRooms", await getRoomsFromDB()); // Emit updated room list
+        
+                // Emit updated room list to clients after deletion
+                const updatedRooms = await getRoomsFromDB();
+                io.emit("availableRooms", updatedRooms);  // Emit updated room list
             } catch (error) {
                 console.error("Error deleting room and messages:", error);
             }
