@@ -18,7 +18,15 @@ client.connect().then(() => {
 }).catch((error) => {
     console.error('Failed to connect to PostgreSQL:', error);
 });
-
+// Test query to check if DB is responding
+const testDBConnection = async () => {
+    try {
+        await client.query('SELECT NOW()');
+        console.log('Database is responding to queries');
+    } catch (error) {
+        console.error('Error executing test query:', error.message);
+    }
+};
 client.query('SELECT NOW()')
     .then(() => {
         console.log('Database is responding to queries');
@@ -33,6 +41,7 @@ const getRoomsFromDB = async () => {
         const res = await client.query('SELECT name FROM rooms');
         console.log('Rooms from DB:', res.rows.map(row => row.name));  // Log after the query
         return res.rows.map(row => row.name);
+        
     } catch (error) {
         console.error('Error fetching rooms from DB:', error);
         return [];
@@ -61,6 +70,17 @@ const saveMessageToDatabase = async (room, message, sender) => {
         console.error('Error saving message to DB:', error);
     }
 };
+client.on('error', (error) => {
+    console.error('Database client error:', error);
+    // Try to reconnect if needed
+    client.connect()
+        .then(() => {
+            console.log('Reconnected to PostgreSQL database');
+        })
+        .catch((error) => {
+            console.error('Failed to reconnect to PostgreSQL:', error);
+        });
+});
 
 // Get message history
 export async function getMessagesFromDB(roomName) {
