@@ -240,7 +240,7 @@ app.prepare().then(() => {
             await saveMessageToDatabase(room, sender, message);
         
             // Emit the new message to the room
-            io.to(room).emit('newMessage', { sender, message });
+            io.to(room).emit('newMessage', { sender, message, room });
             } catch (error) {
             console.error('Error saving message to DB:', error);
             }
