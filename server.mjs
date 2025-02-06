@@ -23,7 +23,7 @@ client.connect().then(() => {
 
 // Fetch available rooms from DB
 const getRoomsFromDB = async () => {
-    console.log("Rooms from DB:", rooms);
+    console.log('Rooms from DB:',res.rows.map(row => row.name));
     try {
         const res = await client.query('SELECT name FROM rooms');
         return res.rows.map(row => row.name);
@@ -140,7 +140,7 @@ app.prepare().then(() => {
         },
     });
     io.on('connection', (socket) => {
-        console.log('A player connected: ${name}');
+        console.log(`A player connected: name`);
 
         socket.on('roll-dice', async ({ playerId, currentChips, room }) => {
             try {
@@ -212,7 +212,7 @@ app.prepare().then(() => {
 
         // Handle join-room event
         socket.on('join-room', async ({ room, name }) => {
-            console.log(`User with chat name ${name} joining room: ${room}`);
+            console.log(`User with chat name ${userName} joining room: ${room}`);
             socket.join(room);
 
             try {
